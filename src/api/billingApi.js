@@ -51,8 +51,14 @@ export const getInvoice = async (id) => {
     return data;
 };
 
-export const generateInvoice = async ({ customerId, billingPeriodStart, billingPeriodEnd }) => {
-    const { data } = await api.post('/billing/invoices/generate', { customerId, billingPeriodStart, billingPeriodEnd });
+export const buildInvoice = async ({
+    customerId, invoiceDate, dueDate, billingPeriodStart, billingPeriodEnd,
+    customFields, columns, rows, taxPct,
+}) => {
+    const { data } = await api.post('/billing/invoices/build', {
+        customerId, invoiceDate, dueDate, billingPeriodStart, billingPeriodEnd,
+        customFields, columns, rows, taxPct,
+    });
     return data;
 };
 

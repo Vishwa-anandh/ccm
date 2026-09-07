@@ -108,6 +108,8 @@ const CustomerInvoiceDetail = ({
   const [dirty, setDirty] = useState(false);
   const cur = invoice.currency || "USD";
   const fmt = (v) => formatCurrency(v, cur);
+  const customFields = invoice.customFields ?? [];
+  const columns = invoice.columns ?? [];
 
   const totals = useMemo(() => {
     const subtotal = draftLines.reduce((s, l) => s + l.finalLineAmount, 0);
@@ -170,6 +172,9 @@ const CustomerInvoiceDetail = ({
             {invoice.paidDate && (
               <MetaChip icon={CheckCircle} label="Paid" value={fmtDate(invoice.paidDate)} accent="green" />
             )}
+            {customFields.map((f) => (
+              <MetaChip key={f.id} icon={Tag} label={f.label} value={f.value} accent="gray" />
+            ))}
           </div>
 
           <div className="grid gap-2 mt-3 grid-cols-2 sm:grid-cols-3">
@@ -195,6 +200,9 @@ const CustomerInvoiceDetail = ({
                 <th className="text-right px-3 py-2">Net</th>
                 <th className="text-right px-3 py-2">Adj. %</th>
                 <th className="text-right px-5 py-2">Final Amount</th>
+                {columns.map((c) => (
+                  <th key={c.id} className="text-left px-3 py-2">{c.label}</th>
+                ))}
               </tr>
             </thead>
             <tbody>
@@ -243,6 +251,11 @@ const CustomerInvoiceDetail = ({
                   <td className="text-right px-5 py-2.5 tabular-nums font-bold text-gray-900 dark:text-white">
                     {fmt(line.finalLineAmount)}
                   </td>
+                  {columns.map((c) => (
+                    <td key={c.id} className="text-left px-3 py-2.5 text-gray-600 dark:text-gray-400">
+                      {line.extra?.[c.id] ?? ""}
+                    </td>
+                  ))}
                 </tr>
               ))}
             </tbody>

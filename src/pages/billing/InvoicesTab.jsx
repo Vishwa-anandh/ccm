@@ -9,7 +9,7 @@ import {
 } from "../../api/billingApi";
 import { formatCurrency } from "../../utils/formatters";
 import CustomerInvoiceDetail, { StatusPill } from "../../components/billing/CustomerInvoiceDetail";
-import GenerateInvoiceModal from "../../components/billing/GenerateInvoiceModal";
+import BuildInvoiceModal from "../../components/billing/BuildInvoiceModal";
 import { fireToast } from "../../components/ToastProvider";
 
 /**
@@ -23,7 +23,7 @@ const InvoicesTab = () => {
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState(null);
-  const [showGenerate, setShowGenerate] = useState(false);
+  const [showBuild, setShowBuild] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const load = async (keepSelected = true) => {
@@ -45,8 +45,8 @@ const InvoicesTab = () => {
   const customerFor = (id) => customers.find((c) => c.id === id);
   const selected = invoices.find((i) => i.id === selectedId);
 
-  const handleGenerated = (invoice) => {
-    setShowGenerate(false);
+  const handleBuilt = (invoice) => {
+    setShowBuild(false);
     setInvoices((prev) => [...prev, invoice]);
     setSelectedId(invoice.id);
   };
@@ -94,7 +94,7 @@ const InvoicesTab = () => {
     <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
       <div className="lg:col-span-2 space-y-3">
         <button
-          onClick={() => setShowGenerate(true)}
+          onClick={() => setShowBuild(true)}
           className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm py-2.5 rounded-xl transition-colors"
         >
           <Plus className="w-4 h-4" /> Generate Invoice
@@ -161,11 +161,11 @@ const InvoicesTab = () => {
         )}
       </div>
 
-      {showGenerate && (
-        <GenerateInvoiceModal
+      {showBuild && (
+        <BuildInvoiceModal
           customers={customers}
-          onClose={() => setShowGenerate(false)}
-          onGenerated={handleGenerated}
+          onClose={() => setShowBuild(false)}
+          onBuilt={handleBuilt}
         />
       )}
     </div>

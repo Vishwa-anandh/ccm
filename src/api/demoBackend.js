@@ -236,6 +236,7 @@ function linesFromVendorInvoice(vendorInvoice, rule) {
       lineNumber: i + 1,
       description: t.name,
       subscriptionId: `${vendorInvoice.provider}-${vendorInvoice.id.slice(-6)}`,
+      extra: {},
       ...calc,
     };
   });
@@ -275,13 +276,16 @@ const cust1SepLines = [
 ].map((l, i) => ({ ...l, lineNumber: i + 1 }));
 const cust1SepTotals = buildInvoiceTotals(cust1SepLines, 8);
 
+// Demonstrates the manual-build columns/custom-fields feature in seed data,
+// so the first Draft a viewer opens already shows what "Build Invoice" adds.
+const COL_NOTES = "col-notes-demo";
 const cust2Lines = [
-  { lineNumber: 1, description: "Azure App Service — Compute", subscriptionId: "sub-acton-001", ...calcLine({ quantity: 1, vendorUnitPrice: 640, discountPct: 0, adjustmentPct: 6, order: PRICING_RULES[3].calculationOrder }) },
+  { lineNumber: 1, description: "Azure App Service — Compute", subscriptionId: "sub-acton-001", extra: { [COL_NOTES]: "Monthly hosting" }, ...calcLine({ quantity: 1, vendorUnitPrice: 640, discountPct: 0, adjustmentPct: 6, order: PRICING_RULES[3].calculationOrder }) },
 ];
 const cust2Totals = buildInvoiceTotals(cust2Lines, 0);
 
 const cust3Lines = [
-  { lineNumber: 1, description: "AWS EC2 — Reserved Instances", subscriptionId: "acct-444455556677", ...calcLine({ quantity: 1, vendorUnitPrice: 3200, discountPct: 5, adjustmentPct: 4, order: PRICING_RULES[4].calculationOrder }) },
+  { lineNumber: 1, description: "AWS EC2 — Reserved Instances", subscriptionId: "acct-444455556677", extra: {}, ...calcLine({ quantity: 1, vendorUnitPrice: 3200, discountPct: 5, adjustmentPct: 4, order: PRICING_RULES[4].calculationOrder }) },
 ];
 const cust3Totals = buildInvoiceTotals(cust3Lines, 10);
 
@@ -292,6 +296,7 @@ const CUSTOMER_INVOICES = [
     billingPeriodStart: "2026-07-01", billingPeriodEnd: "2026-07-31",
     sourceVendorInvoiceIds: ["inv-azure-07", "inv-aws-07", "inv-btp-07"],
     status: "Paid",
+    customFields: [], columns: [],
     lines: cust1JulLines, ...cust1JulTotals,
     approvedBy: "Demo Admin", approvedDate: "2026-07-28",
     publishedDate: "2026-08-01",
@@ -303,6 +308,7 @@ const CUSTOMER_INVOICES = [
     billingPeriodStart: "2026-08-01", billingPeriodEnd: "2026-08-31",
     sourceVendorInvoiceIds: ["inv-azure-08", "inv-aws-08", "inv-btp-08"],
     status: "Overdue",
+    customFields: [], columns: [],
     lines: cust1AugLines, ...cust1AugTotals,
     approvedBy: "Demo Admin", approvedDate: "2026-08-14",
     publishedDate: "2026-08-16",
@@ -314,6 +320,7 @@ const CUSTOMER_INVOICES = [
     billingPeriodStart: "2026-09-01", billingPeriodEnd: "2026-09-30",
     sourceVendorInvoiceIds: ["inv-azure-09", "inv-aws-09", "inv-btp-09"],
     status: "Approved",
+    customFields: [], columns: [],
     lines: cust1SepLines, ...cust1SepTotals,
     approvedBy: "Demo Admin", approvedDate: "2026-09-06",
     publishedDate: null, paidDate: null, paymentReference: null, paymentMethod: null,
@@ -324,6 +331,8 @@ const CUSTOMER_INVOICES = [
     billingPeriodStart: "2026-09-01", billingPeriodEnd: "2026-09-30",
     sourceVendorInvoiceIds: [],
     status: "Draft",
+    customFields: [{ id: "cf-demo-1", label: "PO Number", value: "PO-77410" }],
+    columns: [{ id: COL_NOTES, label: "Notes" }],
     lines: cust2Lines, ...cust2Totals,
     approvedBy: null, approvedDate: null,
     publishedDate: null, paidDate: null, paymentReference: null, paymentMethod: null,
@@ -334,6 +343,7 @@ const CUSTOMER_INVOICES = [
     billingPeriodStart: "2026-08-01", billingPeriodEnd: "2026-08-31",
     sourceVendorInvoiceIds: [],
     status: "Sent",
+    customFields: [], columns: [],
     lines: cust3Lines, ...cust3Totals,
     approvedBy: "Demo Admin", approvedDate: "2026-08-30",
     publishedDate: "2026-09-01", paidDate: null, paymentReference: null, paymentMethod: null,
@@ -494,33 +504,44 @@ export async function demoAdapter(config) {
   if (method === "get" && path === "/billing/invoices") {
     return ok({ data: CUSTOMER_INVOICES }, config);
   }
-  if (method === "post" && path === "/billing/invoices/generate") {
-    const { customerId, billingPeriodStart, billingPeriodEnd } = body(config);
+  // Replaces the old vendor-invoice auto-pull "/generate" endpoint: Finance
+  // now builds a Customer Invoice by hand (Invoice Builder's dynamic
+  // rows/columns/custom-fields UI, reused inside Billing) rather than
+  // picking a customer + period and having vendor data pulled in for them.
+  if (method === "post" && path === "/billing/invoices/build") {
+    const {
+      customerId,
+      invoiceDate,
+      dueDate,
+      billingPeriodStart,
+      billingPeriodEnd,
+      customFields,
+      columns,
+      rows,
+      taxPct,
+    } = body(config);
     const customer = CUSTOMERS.find((c) => c.id === customerId);
     if (!customer) return fail("Customer not found", config, 404);
-
-    const mm = String(billingPeriodStart || "").slice(5, 7);
-    const sourceInvoices = INVOICES.filter(
-      (v) => v.billing_period?.slice(5, 7) === mm && customer.id === "cust-1",
-    );
-    if (sourceInvoices.length === 0) {
-      return fail(
-        "No ingested vendor invoices found for this customer and billing period.",
-        config,
-        422,
-      );
+    if (!Array.isArray(rows) || rows.length === 0) {
+      return fail("At least one line item is required.", config, 422);
     }
 
-    const lines = sourceInvoices
-      .flatMap((v) => {
-        const rule = PRICING_RULES.find(
-          (r) => r.customerId === customerId && r.vendor === v.provider,
-        );
-        return linesFromVendorInvoice(v, rule);
-      })
-      .map((l, i) => ({ ...l, lineNumber: i + 1 }));
+    // Manually-built lines start with no discount/adjustment — there's no
+    // vendor invoice to discount against here. Finance can still edit
+    // these inline afterward on the Draft, same as an auto-pulled invoice.
+    const lines = rows.map((r, i) => ({
+      lineNumber: i + 1,
+      description: r.description,
+      subscriptionId: null,
+      extra: r.extra ?? {},
+      ...calcLine({
+        quantity: r.quantity,
+        vendorUnitPrice: r.unitPrice,
+        discountPct: 0,
+        adjustmentPct: 0,
+      }),
+    }));
 
-    const taxPct = PRICING_RULES.find((r) => r.customerId === customerId)?.taxPct ?? 0;
     const totals = buildInvoiceTotals(lines, taxPct);
     const today = new Date().toISOString().slice(0, 10);
 
@@ -529,12 +550,14 @@ export async function demoAdapter(config) {
       invoiceNumber: makeInvoiceNumber(),
       customerId,
       currency: "USD",
-      invoiceDate: today,
-      dueDate: new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10),
-      billingPeriodStart,
-      billingPeriodEnd,
-      sourceVendorInvoiceIds: sourceInvoices.map((v) => v.id),
+      invoiceDate: invoiceDate || today,
+      dueDate: dueDate || new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10),
+      billingPeriodStart: billingPeriodStart || null,
+      billingPeriodEnd: billingPeriodEnd || null,
+      sourceVendorInvoiceIds: [], // manually built — not linked to any ingested vendor invoice
       status: "Draft",
+      customFields: customFields ?? [],
+      columns: columns ?? [],
       lines,
       ...totals,
       approvedBy: null,
