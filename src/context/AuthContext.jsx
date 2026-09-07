@@ -170,7 +170,7 @@ export const AuthProvider = ({ children }) => {
     const features      = user?.features      ?? {
         budgets: true, smartAlerts: true, syncLogs: true,
         recommendations: true, cloudManagement: true, invoices: true,
-        customerInvoicing: true,
+        customerInvoicing: true, invoiceBuilder: true,
     };
     const accountLimits = user?.accountLimits ?? { azure: 3, aws: 3, btp: 3 };
 

@@ -31,6 +31,7 @@ import { ToastProvider } from "./components/ToastProvider";
 import AdminLogin from "./pages/admin/Login";
 import AdminDashboard from "./pages/admin/Dashboard";
 import InvoiceDemoPage from "./pages/InvoiceDemoPage";
+import InvoiceBuilderPage from "./pages/InvoiceBuilderPage";
 import BillingPage from "./pages/billing/BillingPage";
 import NotFoundPage from "./pages/NotFoundPage";
 import SmartAlertsDashboard from "./pages/SmartAlertsDashboard";
@@ -402,6 +403,17 @@ function App() {
                         label="Sync Logs"
                       >
                         <SyncLogsPage />
+                      </PermissionRoute>
+                    }
+                  />
+                  <Route
+                    path="/invoice-builder"
+                    element={
+                      <PermissionRoute
+                        check={(u) => isPrivileged(u)}
+                        label="Invoice Builder"
+                      >
+                        <InvoiceBuilderPage />
                       </PermissionRoute>
                     }
                   />

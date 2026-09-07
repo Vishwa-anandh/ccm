@@ -42,6 +42,7 @@ export const DEMO_USER = {
     cloudManagement: true,
     invoices: true,
     customerInvoicing: true,
+    invoiceBuilder: true,
   },
   accountLimits: { azure: 10, aws: 10, btp: 10 },
 };
