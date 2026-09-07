@@ -135,7 +135,15 @@ InvoicePreview.propTypes = {
     PropTypes.shape({ id: PropTypes.string, label: PropTypes.string, value: PropTypes.string }),
   ).isRequired,
   columns: PropTypes.arrayOf(PropTypes.shape({ id: PropTypes.string, label: PropTypes.string })).isRequired,
-  rows: PropTypes.arrayOf(PropTypes.object).isRequired,
+  rows: PropTypes.arrayOf(
+    PropTypes.shape({
+      id: PropTypes.string.isRequired,
+      description: PropTypes.string.isRequired,
+      quantity: PropTypes.number.isRequired,
+      unitPrice: PropTypes.number.isRequired,
+      extra: PropTypes.object.isRequired,
+    }),
+  ).isRequired,
   taxPct: PropTypes.number.isRequired,
   notes: PropTypes.string,
 };

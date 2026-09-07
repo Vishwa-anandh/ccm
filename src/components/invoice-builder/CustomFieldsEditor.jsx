@@ -39,6 +39,7 @@ const CustomFieldsEditor = ({ fields, onChange }) => {
           <button
             type="button"
             onClick={() => removeField(f.id)}
+            aria-label="Remove field"
             className="text-red-500 hover:text-red-600 p-1.5 rounded-lg shrink-0"
           >
             <Trash2 className="w-3.5 h-3.5" />

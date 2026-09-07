@@ -37,7 +37,7 @@ const InvoiceBuilderPage = () => {
     if (!previewRef.current) return;
     setDownloading(true);
     try {
-      await exportInvoicePdf(previewRef.current, `${invoiceNumber}.pdf`);
+      await exportInvoicePdf(previewRef.current, `${(invoiceNumber || "invoice").replace(/[^\w.-]+/g, "-")}.pdf`);
     } catch (err) {
       fireToast("Couldn't generate the PDF. " + (err?.message || ""), "error");
     } finally {

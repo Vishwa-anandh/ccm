@@ -2,6 +2,7 @@ import React from "react";
 import PropTypes from "prop-types";
 import { Plus, Trash2, Columns } from "lucide-react";
 import { round2 } from "../../utils/pricingCalc";
+import { formatCurrency } from "../../utils/formatters";
 
 /**
  * LineItemsEditor — the dynamic rows + columns editor. Description/
@@ -70,6 +71,7 @@ const LineItemsEditor = ({ columns, rows, onColumnsChange, onRowsChange }) => {
                     <button
                       type="button"
                       onClick={() => removeColumn(c.id)}
+                      aria-label="Remove column"
                       className="text-red-400 hover:text-red-600 shrink-0"
                     >
                       <Trash2 className="w-3 h-3" />
@@ -114,7 +116,7 @@ const LineItemsEditor = ({ columns, rows, onColumnsChange, onRowsChange }) => {
                     />
                   </td>
                   <td className="px-2 py-1.5 text-right font-bold tabular-nums text-gray-700 dark:text-gray-300">
-                    {amount.toFixed(2)}
+                    {formatCurrency(amount)}
                   </td>
                   {columns.map((c) => (
                     <td key={c.id} className="px-2 py-1.5">
@@ -129,6 +131,7 @@ const LineItemsEditor = ({ columns, rows, onColumnsChange, onRowsChange }) => {
                     <button
                       type="button"
                       onClick={() => removeRow(r.id)}
+                      aria-label="Remove row"
                       className="text-red-500 hover:text-red-600"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
