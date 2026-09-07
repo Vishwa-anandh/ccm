@@ -41,6 +41,12 @@ const LineItemsEditor = ({ columns, rows, onColumnsChange, onRowsChange }) => {
 
   const removeColumn = (id) => {
     onColumnsChange(columns.filter((c) => c.id !== id));
+    onRowsChange(
+      rows.map((r) => {
+        const { [id]: _removed, ...rest } = r.extra;
+        return { ...r, extra: rest };
+      }),
+    );
   };
 
   return (
@@ -52,6 +58,7 @@ const LineItemsEditor = ({ columns, rows, onColumnsChange, onRowsChange }) => {
               <th className="text-left px-2 py-1.5">Description</th>
               <th className="text-right px-2 py-1.5 w-20">Qty</th>
               <th className="text-right px-2 py-1.5 w-24">Unit Price</th>
+              <th className="text-right px-2 py-1.5 w-24">Amount</th>
               {columns.map((c) => (
                 <th key={c.id} className="text-left px-2 py-1.5 w-28">
                   <div className="flex items-center gap-1">
@@ -70,7 +77,6 @@ const LineItemsEditor = ({ columns, rows, onColumnsChange, onRowsChange }) => {
                   </div>
                 </th>
               ))}
-              <th className="text-right px-2 py-1.5 w-24">Amount</th>
               <th className="w-8" />
             </tr>
           </thead>
@@ -107,6 +113,9 @@ const LineItemsEditor = ({ columns, rows, onColumnsChange, onRowsChange }) => {
                       className="w-full text-right bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1"
                     />
                   </td>
+                  <td className="px-2 py-1.5 text-right font-bold tabular-nums text-gray-700 dark:text-gray-300">
+                    {amount.toFixed(2)}
+                  </td>
                   {columns.map((c) => (
                     <td key={c.id} className="px-2 py-1.5">
                       <input
@@ -116,9 +125,6 @@ const LineItemsEditor = ({ columns, rows, onColumnsChange, onRowsChange }) => {
                       />
                     </td>
                   ))}
-                  <td className="px-2 py-1.5 text-right font-bold tabular-nums text-gray-700 dark:text-gray-300">
-                    {amount.toFixed(2)}
-                  </td>
                   <td className="px-2 py-1.5">
                     <button
                       type="button"

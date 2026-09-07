@@ -67,12 +67,12 @@ const InvoicePreview = forwardRef(
               <th className="text-left py-2">Description</th>
               <th className="text-right py-2">Qty</th>
               <th className="text-right py-2">Unit Price</th>
+              <th className="text-right py-2">Amount</th>
               {columns.map((c) => (
                 <th key={c.id} className="text-left py-2">
                   {c.label}
                 </th>
               ))}
-              <th className="text-right py-2">Amount</th>
             </tr>
           </thead>
           <tbody>
@@ -81,12 +81,12 @@ const InvoicePreview = forwardRef(
                 <td className="py-2">{r.description}</td>
                 <td className="py-2 text-right">{r.quantity}</td>
                 <td className="py-2 text-right">{formatCurrency(r.unitPrice)}</td>
+                <td className="py-2 text-right font-semibold">{formatCurrency(lineAmounts[i])}</td>
                 {columns.map((c) => (
                   <td key={c.id} className="py-2">
                     {r.extra[c.id] ?? ""}
                   </td>
                 ))}
-                <td className="py-2 text-right font-semibold">{formatCurrency(lineAmounts[i])}</td>
               </tr>
             ))}
           </tbody>
