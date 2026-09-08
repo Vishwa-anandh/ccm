@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Plus, Inbox, ArrowLeft } from "lucide-react";
 import {
   getCustomers,
@@ -9,7 +10,6 @@ import {
 } from "../../api/billingApi";
 import { formatCurrency } from "../../utils/formatters";
 import CustomerInvoiceDetail, { StatusPill } from "../../components/billing/CustomerInvoiceDetail";
-import BuildInvoiceModal from "../../components/billing/BuildInvoiceModal";
 import { fireToast } from "../../components/ToastProvider";
 
 /**
@@ -19,11 +19,12 @@ import { fireToast } from "../../components/ToastProvider";
  * Billing view (CustomerBillingView.jsx) with a Pay Now action.
  */
 const InvoicesTab = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [customers, setCustomers] = useState([]);
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedId, setSelectedId] = useState(null);
-  const [showBuild, setShowBuild] = useState(false);
+  const [selectedId, setSelectedId] = useState(location.state?.selectedInvoiceId ?? null);
   const [busy, setBusy] = useState(false);
 
   const load = async (keepSelected = true) => {
@@ -40,16 +41,16 @@ const InvoicesTab = () => {
 
   useEffect(() => {
     load();
+    // Consume the "just generated" selection once — a later remount of this
+    // tab (e.g. switching away and back) shouldn't keep re-selecting it.
+    if (location.state?.selectedInvoiceId) {
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const customerFor = (id) => customers.find((c) => c.id === id);
   const selected = invoices.find((i) => i.id === selectedId);
-
-  const handleBuilt = (invoice) => {
-    setShowBuild(false);
-    setInvoices((prev) => [...prev, invoice]);
-    setSelectedId(invoice.id);
-  };
 
   const handleSaveLines = async (lines, taxPct) => {
     setBusy(true);
@@ -97,18 +98,24 @@ const InvoicesTab = () => {
           invoice doesn't leave Finance scrolling past the rest of the
           list to reach it — at lg+ both panes show side by side as before. */}
       <div className={`lg:col-span-2 space-y-3 ${selected ? "hidden lg:block" : ""}`}>
-        <button
-          onClick={() => setShowBuild(true)}
-          className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm py-2.5 rounded-xl transition-colors"
-        >
+        <button onClick={() => navigate("/billing/generate")} className="btn-primary w-full justify-center">
           <Plus className="w-4 h-4" /> Generate Invoice
         </button>
 
-        {loading && <p className="text-sm text-gray-400">Loading…</p>}
+        {loading && (
+          <div className="space-y-2">
+            <div className="skeleton rounded-2xl h-24 w-full" />
+            <div className="skeleton rounded-2xl h-24 w-full" />
+            <div className="skeleton rounded-2xl h-24 w-full" />
+          </div>
+        )}
         {!loading && invoices.length === 0 && (
           <div className="flex flex-col items-center justify-center p-10 text-center bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 border-dashed rounded-2xl">
-            <Inbox className="w-8 h-8 text-gray-400 mb-3" />
+            <div className="w-16 h-16 bg-brand-50 dark:bg-brand-900/30 text-brand-500 rounded-full flex items-center justify-center mb-4">
+              <Inbox className="w-8 h-8" />
+            </div>
             <p className="text-sm font-bold text-gray-900 dark:text-white">No invoices yet</p>
+            <p className="text-xs text-gray-400 mt-1">Click Generate Invoice to get started.</p>
           </div>
         )}
 
@@ -122,7 +129,7 @@ const InvoicesTab = () => {
                 onClick={() => setSelectedId(inv.id)}
                 className={`w-full text-left p-4 rounded-2xl border transition-all ${
                   selectedId === inv.id
-                    ? "border-blue-400 bg-blue-50/50 dark:bg-blue-950/20"
+                    ? "border-brand-400 bg-brand-50/50 dark:bg-brand-950/20"
                     : "border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 hover:border-gray-200 dark:hover:border-gray-700"
                 }`}
               >
@@ -172,14 +179,6 @@ const InvoicesTab = () => {
           </div>
         )}
       </div>
-
-      {showBuild && (
-        <BuildInvoiceModal
-          customers={customers}
-          onClose={() => setShowBuild(false)}
-          onBuilt={handleBuilt}
-        />
-      )}
     </div>
   );
 };

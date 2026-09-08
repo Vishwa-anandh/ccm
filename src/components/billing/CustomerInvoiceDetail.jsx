@@ -11,6 +11,7 @@ import {
   Send,
   Wallet,
   RefreshCw,
+  LayoutTemplate,
 } from "lucide-react";
 import { formatCurrency } from "../../utils/formatters";
 import { calcLine } from "../../utils/pricingCalc";
@@ -29,18 +30,18 @@ import { calcLine } from "../../utils/pricingCalc";
  * since that page doesn't export them.
  */
 
+// shadow-card matches the app's shared card shadow (tailwind.config.js
+// boxShadow.card / index.css .card), instead of re-declaring the same
+// values as an inline style.
 const Card = ({ children, className = "" }) => (
-  <div
-    className={`bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 ${className}`}
-    style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)" }}
-  >
+  <div className={`bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-card ${className}`}>
     {children}
   </div>
 );
 
 const MetaChip = ({ icon: Icon, label, value, accent = "gray" }) => {
   const colors = {
-    blue: "text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800",
+    blue: "text-brand-700 dark:text-brand-300 border-brand-200 dark:border-brand-800",
     green: "text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800",
     orange: "text-orange-700 dark:text-orange-300 border-orange-200 dark:border-orange-800",
     gray: "text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700",
@@ -56,7 +57,7 @@ const MetaChip = ({ icon: Icon, label, value, accent = "gray" }) => {
 
 const KpiTile = ({ label, value, sub, accent = "gray", large = false }) => {
   const accents = {
-    blue: "from-blue-500/10 to-transparent border-blue-100 dark:border-blue-900",
+    blue: "from-brand-500/10 to-transparent border-brand-100 dark:border-brand-900",
     green: "from-emerald-500/10 to-transparent border-emerald-100 dark:border-emerald-900",
     red: "from-red-500/10 to-transparent border-red-100 dark:border-red-900",
     gray: "from-gray-500/5 to-transparent border-gray-100 dark:border-gray-800",
@@ -74,14 +75,18 @@ const KpiTile = ({ label, value, sub, accent = "gray", large = false }) => {
 
 export const STATUS_STYLES = {
   Draft: "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-700",
-  Approved: "bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800",
+  Approved: "bg-brand-50 dark:bg-brand-950/30 text-brand-700 dark:text-brand-300 border-brand-200 dark:border-brand-800",
   Sent: "bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800",
   Paid: "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800",
   Overdue: "bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800",
 };
 
+// Built on the shared `.badge` base (index.css) — same shape/sizing every
+// other badge in the app uses — with Billing's own bg/border color per
+// status layered on top, since `.badge-*` only covers text color and this
+// needs five distinct filled states.
 export const StatusPill = ({ status }) => (
-  <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border tracking-wide ${STATUS_STYLES[status] ?? STATUS_STYLES.Draft}`}>
+  <span className={`badge border ${STATUS_STYLES[status] ?? STATUS_STYLES.Draft}`}>
     {status}
   </span>
 );
@@ -165,6 +170,14 @@ const CustomerInvoiceDetail = ({
               accent="green"
             />
             <MetaChip icon={FileText} label="Invoice Date" value={fmtDate(invoice.invoiceDate)} accent="gray" />
+            {invoice.template && (
+              <MetaChip
+                icon={LayoutTemplate}
+                label="Template"
+                value={invoice.template === "modern" ? "Modern" : "Classic"}
+                accent="gray"
+              />
+            )}
             <MetaChip icon={CreditCard} label="Due" value={fmtDate(invoice.dueDate)} accent="orange" />
             {invoice.publishedDate && (
               <MetaChip icon={Send} label="Published" value={fmtDate(invoice.publishedDate)} accent="blue" />
@@ -187,7 +200,7 @@ const CustomerInvoiceDetail = ({
 
       <Card>
         <div className="px-5 pt-4 pb-2 flex items-center gap-2 border-b border-gray-100 dark:border-gray-800">
-          <Receipt className="w-4 h-4 text-blue-500" />
+          <Receipt className="w-4 h-4 text-brand-500" />
           <h3 className="text-xs font-bold text-gray-900 dark:text-white tracking-wide">Line Items</h3>
         </div>
         <div className="overflow-x-auto">
@@ -294,7 +307,7 @@ const CustomerInvoiceDetail = ({
               onClick={() => onApprove?.()}
               disabled={busy || dirty}
               title={dirty ? "Save your changes first" : ""}
-              className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all disabled:opacity-50 flex items-center gap-1.5"
+              className="btn-primary px-4 py-2 text-xs disabled:opacity-50"
             >
               {busy ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />}
               Approve

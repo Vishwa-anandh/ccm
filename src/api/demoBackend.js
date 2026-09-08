@@ -519,6 +519,7 @@ export async function demoAdapter(config) {
       columns,
       rows,
       taxPct,
+      template,
     } = body(config);
     const customer = CUSTOMERS.find((c) => c.id === customerId);
     if (!customer) return fail("Customer not found", config, 404);
@@ -558,6 +559,7 @@ export async function demoAdapter(config) {
       status: "Draft",
       customFields: customFields ?? [],
       columns: columns ?? [],
+      template: template === "modern" ? "modern" : "classic",
       lines,
       ...totals,
       approvedBy: null,

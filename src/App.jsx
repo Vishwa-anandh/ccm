@@ -33,6 +33,7 @@ import AdminDashboard from "./pages/admin/Dashboard";
 import InvoiceDemoPage from "./pages/InvoiceDemoPage";
 import InvoiceBuilderPage from "./pages/InvoiceBuilderPage";
 import BillingPage from "./pages/billing/BillingPage";
+import GenerateInvoicePage from "./pages/billing/GenerateInvoicePage";
 import NotFoundPage from "./pages/NotFoundPage";
 import SmartAlertsDashboard from "./pages/SmartAlertsDashboard";
 import SubscriptionExpiredPage from "./pages/SubscriptionExpiredPage";
@@ -359,6 +360,17 @@ function App() {
                   />
                   <Route path="/invoices" element={<InvoicesPage />} />
                   <Route path="/billing" element={<BillingPage />} />
+                  <Route
+                    path="/billing/generate"
+                    element={
+                      <PermissionRoute
+                        check={(u) => isPrivileged(u)}
+                        label="Generate Customer Invoice"
+                      >
+                        <GenerateInvoicePage />
+                      </PermissionRoute>
+                    }
+                  />
                   <Route
                     path="/recommendations"
                     element={<RecommendationsPage />}

@@ -28,15 +28,22 @@ const BillingPage = () => {
 
   if (isPrivileged && !previewAsCustomer) {
     const Active = { invoices: InvoicesTab, customers: CustomersTab, "pricing-rules": PricingRulesTab }[activeTab];
-    // max-w-7xl (1280px), matching every other top-level page's wrapper
-    // (InvoicesPage.jsx, InvoiceBuilderPage.jsx) — max-w-6xl was narrower
-    // than the app's own convention, not just narrower than ideal.
+    // max-w-7xl (1280px) — matches the app's other document/table-dense
+    // pages (InvoicesPage.jsx, InvoiceBuilderPage.jsx), not every page:
+    // most dashboards (HomePage, BudgetsPage, SyncLogsPage, etc.) are
+    // instead full-width. Billing's long line-item tables are a closer
+    // match to the invoice-shaped pages than to those dashboards.
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">Billing</h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight flex items-center gap-2">
+              <div className="p-2 bg-brand-50 dark:bg-brand-900/20 rounded-xl">
+                <ReceiptIcon className="w-5 h-5 text-brand-600" />
+              </div>
+              Billing
+            </h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 ml-11">
               Generate branded customer invoices from already-ingested vendor invoices.
             </p>
           </div>

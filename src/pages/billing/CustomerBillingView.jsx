@@ -73,13 +73,18 @@ const CustomerBillingView = () => {
     );
   }
 
-  // max-w-7xl, matching every other top-level page's wrapper (InvoicesPage.jsx,
-  // InvoiceBuilderPage.jsx) and BillingPage's own Finance console.
+  // max-w-7xl, matching BillingPage's Finance console and the app's other
+  // invoice-shaped pages (InvoicesPage.jsx, InvoiceBuilderPage.jsx).
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">Billing</h1>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight flex items-center gap-2">
+          <div className="p-2 bg-brand-50 dark:bg-brand-900/20 rounded-xl">
+            <Receipt className="w-5 h-5 text-brand-600" />
+          </div>
+          Billing
+        </h1>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 ml-11">
           Your invoices from Maitsys — view history, status, and pay online.
         </p>
       </div>
@@ -89,10 +94,18 @@ const CustomerBillingView = () => {
             of list/detail shows at a time, so picking a bill doesn't leave
             you scrolling past the rest of the list to see it. */}
         <div className={`lg:col-span-2 space-y-2 ${selected ? "hidden lg:block" : ""}`}>
-          {loading && <p className="text-sm text-gray-400">Loading…</p>}
+          {loading && (
+            <div className="space-y-2">
+              <div className="skeleton rounded-2xl h-20 w-full" />
+              <div className="skeleton rounded-2xl h-20 w-full" />
+              <div className="skeleton rounded-2xl h-20 w-full" />
+            </div>
+          )}
           {!loading && invoices.length === 0 && (
             <div className="flex flex-col items-center justify-center p-10 text-center bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 border-dashed rounded-2xl">
-              <ShieldCheck className="w-8 h-8 text-gray-400 mb-3" />
+              <div className="w-16 h-16 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-500 rounded-full flex items-center justify-center mb-4">
+                <ShieldCheck className="w-8 h-8" />
+              </div>
               <p className="text-sm font-bold text-gray-900 dark:text-white">No invoices yet</p>
               <p className="text-xs text-gray-400 mt-1">You're all caught up.</p>
             </div>
@@ -107,7 +120,7 @@ const CustomerBillingView = () => {
                   onClick={() => setSelectedId(inv.id)}
                   className={`w-full text-left p-4 rounded-2xl border transition-all ${
                     selectedId === inv.id
-                      ? "border-blue-400 bg-blue-50/50 dark:bg-blue-950/20"
+                      ? "border-brand-400 bg-brand-50/50 dark:bg-brand-950/20"
                       : "border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 hover:border-gray-200 dark:hover:border-gray-700"
                   }`}
                 >

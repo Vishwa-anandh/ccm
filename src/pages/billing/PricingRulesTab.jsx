@@ -82,7 +82,7 @@ const PricingRulesTab = () => {
     // See CustomersTab.jsx for why this is lg, not md — md left too little
     // room per column once the sidebar's width is subtracted.
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-      <div className="col-span-1 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 h-fit shadow-sm">
+      <div className="col-span-1 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 h-fit shadow-card">
         <h3 className="font-bold text-gray-900 dark:text-white mb-4">New Pricing Rule</h3>
         <form onSubmit={handleCreate} className="space-y-4">
           <div>
@@ -154,7 +154,7 @@ const PricingRulesTab = () => {
           <button
             type="submit"
             disabled={saving || !form.customerId}
-            className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm py-2 rounded-lg transition-colors disabled:opacity-50"
+            className="btn-primary w-full justify-center disabled:opacity-50"
           >
             <Plus className="w-4 h-4" /> Add Rule
           </button>
@@ -162,10 +162,17 @@ const PricingRulesTab = () => {
       </div>
 
       <div className="col-span-2 space-y-3">
-        {loading && <p className="text-sm text-gray-400">Loading…</p>}
+        {loading && (
+          <>
+            <div className="skeleton rounded-2xl h-20 w-full" />
+            <div className="skeleton rounded-2xl h-20 w-full" />
+          </>
+        )}
         {!loading && rules.length === 0 && (
           <div className="flex flex-col items-center justify-center p-12 text-center bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 border-dashed rounded-2xl">
-            <ShieldAlert className="w-8 h-8 text-gray-400 mb-3" />
+            <div className="w-16 h-16 bg-amber-50 dark:bg-amber-900/30 text-amber-500 rounded-full flex items-center justify-center mb-4">
+              <ShieldAlert className="w-8 h-8" />
+            </div>
             <h3 className="text-sm font-bold text-gray-900 dark:text-white">No Pricing Rules Yet</h3>
             <p className="text-gray-500 text-xs mt-1 max-w-sm">
               A customer's lines can't be priced until a Pricing Rule exists for that customer + vendor.
@@ -176,11 +183,11 @@ const PricingRulesTab = () => {
           rules.map((r) => (
             <div
               key={r.id}
-              className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 flex items-center justify-between shadow-sm"
+              className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 flex items-center justify-between shadow-card"
             >
               <div className="flex items-center gap-3 min-w-0">
-                <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-950/30 flex items-center justify-center shrink-0">
-                  <Percent className="w-4 h-4 text-blue-500" />
+                <div className="w-9 h-9 rounded-xl bg-brand-50 dark:bg-brand-950/30 flex items-center justify-center shrink-0">
+                  <Percent className="w-4 h-4 text-brand-500" />
                 </div>
                 <div className="min-w-0">
                   <p className="font-bold text-sm text-gray-900 dark:text-white truncate">

@@ -16,30 +16,31 @@ const MAITSYS_SENDER = {
  * captures into the downloaded PDF.
  */
 const InvoicePreview = forwardRef(
-  ({ invoiceNumber, invoiceDate, dueDate, billTo, customFields, columns, rows, taxPct, notes }, ref) => {
+  ({ invoiceNumber, invoiceDate, dueDate, billTo, customFields, columns, rows, taxPct, notes, template = "classic" }, ref) => {
     const lineAmounts = rows.map((r) => round2(Number(r.quantity || 0) * Number(r.unitPrice || 0)));
     const subtotal = round2(lineAmounts.reduce((s, a) => s + a, 0));
     const tax = round2(subtotal * (Number(taxPct || 0) / 100));
     const total = round2(subtotal + tax);
+    const modern = template === "modern";
 
     return (
-      <div ref={ref} className="bg-white text-gray-900 p-10 w-full" style={{ minHeight: 600 }}>
-        <div className="flex items-start justify-between mb-8">
+      <div ref={ref} className="bg-white text-gray-900 w-full" style={{ minHeight: 600 }}>
+        <div className={`flex items-start justify-between p-10 pb-8 ${modern ? "bg-brand-600 text-white" : ""}`}>
           <div className="flex items-center gap-3">
             <img src={MAITSYS_SENDER.logo} alt="Maitsys" className="w-12 h-12 object-contain" />
             <div>
               <p className="font-bold text-lg">{MAITSYS_SENDER.name}</p>
-              <p className="text-xs text-gray-500">{MAITSYS_SENDER.email}</p>
-              <p className="text-xs text-gray-500">{MAITSYS_SENDER.website}</p>
+              <p className={`text-xs ${modern ? "text-white/80" : "text-gray-500"}`}>{MAITSYS_SENDER.email}</p>
+              <p className={`text-xs ${modern ? "text-white/80" : "text-gray-500"}`}>{MAITSYS_SENDER.website}</p>
             </div>
           </div>
           <div className="text-right">
             <p className="text-2xl font-bold tracking-tight">INVOICE</p>
-            <p className="text-sm font-mono text-gray-600">#{invoiceNumber}</p>
+            <p className={`text-sm font-mono ${modern ? "text-white/80" : "text-gray-600"}`}>#{invoiceNumber}</p>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-6 mb-8">
+        <div className="grid grid-cols-2 gap-6 px-10 pt-8 mb-8">
           <div>
             <p className="text-[10px] font-bold text-gray-400 tracking-wide mb-1">BILL TO</p>
             <p className="font-semibold">{billTo.name || "—"}</p>
@@ -61,60 +62,62 @@ const InvoicePreview = forwardRef(
           </div>
         </div>
 
-        <table className="w-full text-sm mb-6">
-          <thead>
-            <tr className="border-b-2 border-gray-800 text-[10px] font-bold text-gray-500 tracking-wide">
-              <th className="text-left py-2">Description</th>
-              <th className="text-right py-2">Qty</th>
-              <th className="text-right py-2">Unit Price</th>
-              <th className="text-right py-2">Amount</th>
-              {columns.map((c) => (
-                <th key={c.id} className="text-left py-2">
-                  {c.label}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r, i) => (
-              <tr key={r.id} className="border-b border-gray-100">
-                <td className="py-2">{r.description}</td>
-                <td className="py-2 text-right">{r.quantity}</td>
-                <td className="py-2 text-right">{formatCurrency(r.unitPrice)}</td>
-                <td className="py-2 text-right font-semibold">{formatCurrency(lineAmounts[i])}</td>
+        <div className="px-10 pb-10">
+          <table className="w-full text-sm mb-6">
+            <thead>
+              <tr className="border-b-2 border-gray-800 text-[10px] font-bold text-gray-500 tracking-wide">
+                <th className="text-left py-2">Description</th>
+                <th className="text-right py-2">Qty</th>
+                <th className="text-right py-2">Unit Price</th>
+                <th className="text-right py-2">Amount</th>
                 {columns.map((c) => (
-                  <td key={c.id} className="py-2">
-                    {r.extra[c.id] ?? ""}
-                  </td>
+                  <th key={c.id} className="text-left py-2">
+                    {c.label}
+                  </th>
                 ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {rows.map((r, i) => (
+                <tr key={r.id} className="border-b border-gray-100">
+                  <td className="py-2">{r.description}</td>
+                  <td className="py-2 text-right">{r.quantity}</td>
+                  <td className="py-2 text-right">{formatCurrency(r.unitPrice)}</td>
+                  <td className="py-2 text-right font-semibold">{formatCurrency(lineAmounts[i])}</td>
+                  {columns.map((c) => (
+                    <td key={c.id} className="py-2">
+                      {r.extra[c.id] ?? ""}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
 
-        <div className="flex justify-end mb-8">
-          <div className="w-56 space-y-1">
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-500">Subtotal</span>
-              <span className="font-semibold">{formatCurrency(subtotal)}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-500">Tax ({taxPct}%)</span>
-              <span className="font-semibold">{formatCurrency(tax)}</span>
-            </div>
-            <div className="flex justify-between text-base border-t-2 border-gray-800 pt-1 mt-1">
-              <span className="font-bold">Total Due</span>
-              <span className="font-bold">{formatCurrency(total)}</span>
+          <div className="flex justify-end mb-8">
+            <div className="w-56 space-y-1">
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500">Subtotal</span>
+                <span className="font-semibold">{formatCurrency(subtotal)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500">Tax ({taxPct}%)</span>
+                <span className="font-semibold">{formatCurrency(tax)}</span>
+              </div>
+              <div className={`flex justify-between text-base border-t-2 pt-1 mt-1 ${modern ? "border-brand-600" : "border-gray-800"}`}>
+                <span className="font-bold">Total Due</span>
+                <span className="font-bold">{formatCurrency(total)}</span>
+              </div>
             </div>
           </div>
+
+          {notes && (
+            <div>
+              <p className="text-[10px] font-bold text-gray-400 tracking-wide mb-1">NOTES</p>
+              <p className="text-xs text-gray-600 whitespace-pre-line">{notes}</p>
+            </div>
+          )}
         </div>
-
-        {notes && (
-          <div>
-            <p className="text-[10px] font-bold text-gray-400 tracking-wide mb-1">NOTES</p>
-            <p className="text-xs text-gray-600 whitespace-pre-line">{notes}</p>
-          </div>
-        )}
       </div>
     );
   },
@@ -146,6 +149,7 @@ InvoicePreview.propTypes = {
   ).isRequired,
   taxPct: PropTypes.number.isRequired,
   notes: PropTypes.string,
+  template: PropTypes.oneOf(["classic", "modern"]),
 };
 
 export default InvoicePreview;
