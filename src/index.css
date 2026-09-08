@@ -30,6 +30,21 @@
 }
 
 @layer utilities {
+  /* Sidebar's own nav list can grow long, but shouldn't show a permanent
+     scrollbar — only reveal it while the pointer is actually over it. */
+  .sidebar-scroll {
+    scrollbar-color: transparent transparent;
+  }
+  .sidebar-scroll:hover {
+    scrollbar-color: #cbd5e1 transparent;
+  }
+  .sidebar-scroll::-webkit-scrollbar-thumb {
+    background-color: transparent;
+  }
+  .sidebar-scroll:hover::-webkit-scrollbar-thumb {
+    @apply bg-gray-300 dark:bg-gray-700;
+  }
+
   /* Auto-rolling slider for overflowing single-line text (e.g. KPI card titles) —
      slides the full text left then back, pausing briefly at each end. Distance is
      set per-instance via the --marquee-distance custom property. */

@@ -57,12 +57,12 @@ const GcpIcon = ({ className }) => (
 );
 GcpIcon.propTypes = { className: PropTypes.string };
 
-/* ── Tooltip wrapper for collapsed items ─────── */
-const NavTooltip = ({ label, icon: Icon, children, collapsed }) => {
+/* ── Custom tooltip (replaces native title="" everywhere in the sidebar) ── */
+const Tooltip = ({ label, icon: Icon, children, active = true, small = false }) => {
   const [pos, setPos] = useState(null);
   const ref = useRef(null);
 
-  if (!collapsed) return children;
+  if (!active) return children;
 
   const handleEnter = () => {
     if (ref.current) {
@@ -72,7 +72,7 @@ const NavTooltip = ({ label, icon: Icon, children, collapsed }) => {
   };
 
   return (
-    <div ref={ref} onMouseEnter={handleEnter} onMouseLeave={() => setPos(null)}>
+    <div ref={ref} onMouseEnter={handleEnter} onMouseLeave={() => setPos(null)} className="contents">
       {children}
       {pos && (
         <div
@@ -80,7 +80,9 @@ const NavTooltip = ({ label, icon: Icon, children, collapsed }) => {
           style={{ top: pos.top, left: pos.left, transform: "translateY(-50%)" }}
         >
           <div className="absolute right-full top-1/2 -translate-y-1/2 border-[6px] border-transparent border-r-[#EFF6FF] dark:border-r-[#1e3a8f]" />
-          <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl whitespace-nowrap shadow-xl bg-[#EFF6FF] dark:bg-[#1e3a8f]/90 border-l-[3px] border-[#2563EB] dark:border-[#3B82F6]">
+          <div
+            className={`flex items-center gap-2.5 rounded-xl whitespace-nowrap shadow-xl bg-[#EFF6FF] dark:bg-[#1e3a8f]/90 border-l-[3px] border-[#2563EB] dark:border-[#3B82F6] ${small ? "px-2.5 py-1.5" : "px-3 py-2.5"}`}
+          >
             {Icon && <Icon className="w-5 h-5 shrink-0 text-[#2563EB] dark:text-[#3B82F6]" />}
             <span className="text-[13px] font-semibold text-[#2563EB] dark:text-[#3B82F6]">{label}</span>
           </div>
@@ -89,6 +91,20 @@ const NavTooltip = ({ label, icon: Icon, children, collapsed }) => {
     </div>
   );
 };
+Tooltip.propTypes = {
+  label: PropTypes.string.isRequired,
+  icon: PropTypes.elementType,
+  children: PropTypes.node.isRequired,
+  active: PropTypes.bool,
+  small: PropTypes.bool,
+};
+
+/* ── Tooltip wrapper for collapsed nav items specifically ────── */
+const NavTooltip = ({ label, icon, children, collapsed }) => (
+  <Tooltip label={label} icon={icon} active={collapsed}>
+    {children}
+  </Tooltip>
+);
 NavTooltip.propTypes = {
   label: PropTypes.string.isRequired,
   icon: PropTypes.elementType,
@@ -188,7 +204,7 @@ const SidebarNav = ({
   const ni  = (a) => navItemCls(a, iconOnly);
 
   return (
-    <nav className={`flex-1 py-2 overflow-y-auto overflow-x-hidden space-y-0.5 ${iconOnly ? "px-2" : "px-3"}`}>
+    <nav className={`flex-1 py-2 overflow-y-auto overflow-x-hidden space-y-0.5 sidebar-scroll ${iconOnly ? "px-2" : "px-3"}`}>
 
       {/* ── Dashboard ── */}
       <NavTooltip label="Dashboard" icon={LayoutDashboard} collapsed={iconOnly}>
@@ -389,13 +405,15 @@ const SidebarBottom = ({ iconOnly, theme, toggleTheme, user, onProfileClick, onL
             )}
           </div>
           {!iconOnly && (
-            <button
-              onClick={(e) => { e.stopPropagation(); onLogout(); }}
-              className="text-[#94A3B8] hover:text-red-500 transition-colors p-1 shrink-0"
-              aria-label="Sign out"
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
+            <Tooltip label="Sign out" small>
+              <button
+                onClick={(e) => { e.stopPropagation(); onLogout(); }}
+                className="text-[#94A3B8] hover:text-red-500 transition-colors p-1 shrink-0"
+                aria-label="Sign out"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            </Tooltip>
           )}
         </div>
       </NavTooltip>
@@ -419,6 +437,14 @@ const SidebarBottom = ({ iconOnly, theme, toggleTheme, user, onProfileClick, onL
             </div>
           </div>
           <div className="p-1">
+            <button onClick={toggleTheme}
+              className="w-full flex items-center justify-between gap-3 px-3 py-2 text-sm text-[#475569] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-white hover:bg-[#F1F5F9] dark:hover:bg-[#1a2744]/60 rounded-lg transition-colors">
+              <span className="flex items-center gap-3">
+                {theme === "dark" ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4 text-amber-500" />}
+                Theme
+              </span>
+              <span className="text-xs font-bold text-[#94A3B8] capitalize">{theme || "system"}</span>
+            </button>
             <button onClick={onProfileModalOpen}
               className="w-full flex items-center gap-3 px-3 py-2 text-sm text-[#475569] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-white hover:bg-[#F1F5F9] dark:hover:bg-[#1a2744]/60 rounded-lg transition-colors">
               <UserIcon className="w-4 h-4" />Profile &amp; Password
@@ -453,6 +479,7 @@ const Sidebar = ({ theme, toggleTheme, isOpen, closeMobileMenu }) => {
   const [savingsOpen, setSavingsOpen]       = useState(true);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [isHovering, setIsHovering]         = useState(false);
 
   const iconOnly = collapsed;
   const isAdmin  = user?.role === "admin" || user?.role === "owner";
@@ -490,9 +517,14 @@ const Sidebar = ({ theme, toggleTheme, isOpen, closeMobileMenu }) => {
         />
       )}
 
-      <aside className={`fixed inset-y-0 left-0 z-50 h-screen ${w} bg-white dark:bg-[#0B1023] text-[#0F172A] dark:text-[#CBD5E1] border-r border-[#E2E8F0] dark:border-[#1a2744] flex flex-col transition-all duration-300 ease-in-out md:static md:translate-x-0 ${isOpen ? "translate-x-0" : "-translate-x-full"}`}>
+      <aside
+        onMouseEnter={() => setIsHovering(true)}
+        onMouseLeave={() => setIsHovering(false)}
+        className={`fixed inset-y-0 left-0 z-50 h-screen ${w} bg-white dark:bg-[#0B1023] text-[#0F172A] dark:text-[#CBD5E1] border-r border-[#E2E8F0] dark:border-[#1a2744] flex flex-col transition-all duration-300 ease-in-out md:static md:translate-x-0 ${isOpen ? "translate-x-0" : "-translate-x-full"}`}>
 
-        {/* Logo + collapse toggle */}
+        {/* Logo + collapse toggle. Collapsed: shows just the logo by
+            default, swapping to the expand button on hover so the rail
+            stays clean until you actually want to act on it. */}
         <div className={`flex items-center border-b border-[#E2E8F0] dark:border-[#1a2744] shrink-0 h-[64px] ${iconOnly ? "justify-center px-2" : "gap-3 px-4"}`}>
           {!iconOnly && (
             <>
@@ -503,15 +535,32 @@ const Sidebar = ({ theme, toggleTheme, isOpen, closeMobileMenu }) => {
                 <h1 className="text-sm font-bold text-[#0F172A] dark:text-white leading-none truncate">Maitsys</h1>
                 <p className="text-[10px] text-[#94A3B8] mt-0.5 font-bold tracking-wider">Cloud Cost Monitor</p>
               </div>
+              <Tooltip label="Collapse sidebar">
+                <button
+                  onClick={() => setCollapsed(!collapsed)}
+                  className="flex items-center justify-center w-8 h-8 rounded-xl text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-white hover:bg-[#F1F5F9] dark:hover:bg-[#1a2744] transition-all shrink-0"
+                >
+                  <PanelLeftClose className="w-4 h-4" />
+                </button>
+              </Tooltip>
             </>
           )}
-          <button
-            onClick={() => setCollapsed(!collapsed)}
-            className="flex items-center justify-center w-8 h-8 rounded-xl text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-white hover:bg-[#F1F5F9] dark:hover:bg-[#1a2744] transition-all shrink-0"
-            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          >
-            {collapsed ? <PanelLeftOpen className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}
-          </button>
+          {iconOnly && (
+            isHovering ? (
+              <Tooltip label="Expand sidebar">
+                <button
+                  onClick={() => setCollapsed(false)}
+                  className="flex items-center justify-center w-9 h-9 rounded-xl text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-white hover:bg-[#F1F5F9] dark:hover:bg-[#1a2744] transition-all shrink-0"
+                >
+                  <PanelLeftOpen className="w-4 h-4" />
+                </button>
+              </Tooltip>
+            ) : (
+              <div className="relative flex items-center justify-center w-9 h-9 rounded-xl bg-white shadow-md shadow-black/10 overflow-hidden shrink-0 border border-[#E2E8F0] dark:border-[#1a2744]">
+                <img src="/app-logo.png" alt="Logo" className="w-full h-full object-cover" />
+              </div>
+            )
+          )}
         </div>
 
         <SidebarNav
