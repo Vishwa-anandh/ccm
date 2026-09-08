@@ -1,7 +1,8 @@
 import React, { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, RefreshCw, AlertTriangle, FileStack } from "lucide-react";
-import { getCustomers, buildInvoice } from "../../api/billingApi";
+import { ArrowLeft, RefreshCw, AlertTriangle, FileStack, Percent } from "lucide-react";
+import { getCustomers, getPricingRules, buildInvoice } from "../../api/billingApi";
+import { CALC_ORDERS } from "../../utils/pricingCalc";
 import { fireToast } from "../../components/ToastProvider";
 import CustomFieldsEditor from "../../components/invoice-builder/CustomFieldsEditor";
 import LineItemsEditor from "../../components/invoice-builder/LineItemsEditor";
@@ -28,6 +29,7 @@ const GenerateInvoicePage = () => {
   const [customers, setCustomers] = useState([]);
   const [customerId, setCustomerId] = useState("");
   const [loadingCustomers, setLoadingCustomers] = useState(true);
+  const [pricingRules, setPricingRules] = useState([]);
   const [invoiceDate, setInvoiceDate] = useState(todayIso);
   const [dueDate, setDueDate] = useState(() => plusDaysIso(14));
   const [billingPeriodStart, setBillingPeriodStart] = useState(() => todayIso().slice(0, 8) + "01");
@@ -45,9 +47,10 @@ const GenerateInvoicePage = () => {
   React.useEffect(() => {
     (async () => {
       try {
-        const c = await getCustomers();
+        const [c, rules] = await Promise.all([getCustomers(), getPricingRules()]);
         setCustomers(c);
         setCustomerId(c[0]?.id ?? "");
+        setPricingRules(rules);
       } finally {
         setLoadingCustomers(false);
       }
@@ -56,6 +59,10 @@ const GenerateInvoicePage = () => {
 
   const customer = customers.find((c) => c.id === customerId);
   const canCreate = customerId && rows.some((r) => r.description.trim().length > 0);
+  // Reference only — manually built lines still start with 0% discount/
+  // adjustment (there's no vendor invoice to discount against here), so
+  // these just tell Finance what this customer's configured rates are.
+  const customerRules = pricingRules.filter((r) => r.customerId === customerId);
 
   const handleCreate = async () => {
     if (!canCreate) return;
@@ -140,6 +147,43 @@ const GenerateInvoicePage = () => {
               </select>
             )}
           </div>
+
+          {!loadingCustomers && customerId && (
+            <div>
+              <p className="text-xs font-bold text-gray-500 dark:text-gray-400 mb-2 tracking-wide">
+                {customer?.name}'s Pricing Rules
+              </p>
+              {customerRules.length === 0 ? (
+                <p className="text-xs text-gray-400 bg-gray-50 dark:bg-gray-800 rounded-xl px-3 py-2.5">
+                  No pricing rules configured for this customer yet.
+                </p>
+              ) : (
+                <div className="space-y-1.5">
+                  {customerRules.map((r) => (
+                    <div
+                      key={r.id}
+                      className="flex items-center justify-between gap-3 text-xs bg-gray-50 dark:bg-gray-800 rounded-xl px-3 py-2"
+                    >
+                      <span className="flex items-center gap-1.5 font-bold text-gray-700 dark:text-gray-300 shrink-0">
+                        <Percent className="w-3 h-3 text-brand-500" /> {r.vendor.toUpperCase()}
+                      </span>
+                      <span className="text-gray-500 dark:text-gray-400 text-right">
+                        Discount {r.vendorDiscountPct}% → Adjustment {r.maitsysAdjustmentPct}% · Tax {r.taxPct}%
+                        <span className="block text-[10px] text-gray-400">
+                          {r.calculationOrder === CALC_ORDERS.ADJUSTMENT_THEN_DISCOUNT
+                            ? "Adjustment then Discount"
+                            : "Discount then Adjustment"}
+                        </span>
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <p className="text-[10px] text-gray-400 mt-1.5">
+                Reference only — manually entered lines below start at 0% discount/adjustment; edit them on the Draft afterward if you want these rates applied.
+              </p>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-3">
             <div>
