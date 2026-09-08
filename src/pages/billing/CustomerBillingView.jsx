@@ -73,10 +73,10 @@ const CustomerBillingView = () => {
     );
   }
 
-  // max-w-7xl, matching BillingPage's Finance console and the app's other
-  // invoice-shaped pages (InvoicesPage.jsx, InvoiceBuilderPage.jsx).
+  // Full-width, matching BillingPage's Finance console and the app's
+  // dominant dashboard convention (see BillingPage.jsx for the survey).
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+    <div className="p-4 sm:p-6 xl:p-8 w-full space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight flex items-center gap-2">
           <div className="p-2 bg-brand-50 dark:bg-brand-900/20 rounded-xl">

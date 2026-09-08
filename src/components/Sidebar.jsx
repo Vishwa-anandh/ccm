@@ -19,7 +19,6 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Receipt,
-  FileEdit,
 } from "lucide-react";
 import ProfileModal from "./ProfileModal";
 import { useAuth } from "../context/AuthContext";
@@ -328,16 +327,6 @@ const SidebarNav = ({
               <Users className="w-5 h-5 shrink-0" />{!iconOnly && <span>User Management</span>}
             </NavLink>
           </NavTooltip>
-
-          {features.invoiceBuilder ? (
-            <NavTooltip label="Invoice Builder" icon={FileEdit} collapsed={iconOnly}>
-              <NavLink to="/invoice-builder" onClick={closeMobileMenu} className={({ isActive }) => ni(isActive)}>
-                <FileEdit className="w-5 h-5 shrink-0" />{!iconOnly && <span>Invoice Builder</span>}
-              </NavLink>
-            </NavTooltip>
-          ) : (
-            <LockedNavItem icon={FileEdit} label="Invoice Builder" collapsed={iconOnly} />
-          )}
 
           {features.syncLogs ? (
             <NavTooltip label="Sync Logs" icon={Database} collapsed={iconOnly}>

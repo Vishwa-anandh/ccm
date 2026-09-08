@@ -28,13 +28,12 @@ const BillingPage = () => {
 
   if (isPrivileged && !previewAsCustomer) {
     const Active = { invoices: InvoicesTab, customers: CustomersTab, "pricing-rules": PricingRulesTab }[activeTab];
-    // max-w-7xl (1280px) — matches the app's other document/table-dense
-    // pages (InvoicesPage.jsx, InvoiceBuilderPage.jsx), not every page:
-    // most dashboards (HomePage, BudgetsPage, SyncLogsPage, etc.) are
-    // instead full-width. Billing's long line-item tables are a closer
-    // match to the invoice-shaped pages than to those dashboards.
+    // Full-width, matching the app's actual dominant dashboard convention
+    // (HomePage, BudgetsPage, SyncLogsPage, UserManagement, Recommendations,
+    // SmartAlerts, SubscriptionManagement) — only InvoicesPage.jsx and
+    // InvoiceBuilderPage.jsx are the max-w-7xl outliers, not the norm.
     return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+      <div className="p-4 sm:p-6 xl:p-8 w-full space-y-6">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight flex items-center gap-2">
@@ -83,7 +82,7 @@ const BillingPage = () => {
   return (
     <div>
       {DEMO_MODE && previewAsCustomer && (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+        <div className="w-full p-4 sm:p-6 xl:p-8 pb-0 flex justify-end">
           <button
             onClick={() => setPreviewAsCustomer(false)}
             className="flex items-center gap-1.5 text-xs font-bold text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 px-3 py-1.5 rounded-lg border border-dashed border-gray-300 dark:border-gray-700"
