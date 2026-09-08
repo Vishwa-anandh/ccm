@@ -80,19 +80,19 @@ const BillingPage = () => {
   }
 
   return (
-    <div>
-      {DEMO_MODE && previewAsCustomer && (
-        <div className="w-full p-4 sm:p-6 xl:p-8 pb-0 flex justify-end">
+    <CustomerBillingView
+      headerAction={
+        DEMO_MODE &&
+        previewAsCustomer && (
           <button
             onClick={() => setPreviewAsCustomer(false)}
-            className="flex items-center gap-1.5 text-xs font-bold text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 px-3 py-1.5 rounded-lg border border-dashed border-gray-300 dark:border-gray-700"
+            className="flex items-center gap-1.5 text-xs font-bold text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 px-3 py-1.5 rounded-lg border border-dashed border-gray-300 dark:border-gray-700 shrink-0"
           >
             <ShieldCheck className="w-3.5 h-3.5" /> Back to Finance console
           </button>
-        </div>
-      )}
-      <CustomerBillingView />
-    </div>
+        )
+      }
+    />
   );
 };
 

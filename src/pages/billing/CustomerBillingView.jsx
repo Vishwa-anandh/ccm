@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import PropTypes from "prop-types";
 import { Receipt, ShieldCheck, ArrowLeft } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { getCustomers, getInvoices, payInvoice } from "../../api/billingApi";
@@ -17,7 +18,7 @@ const VISIBLE_STATUSES = ["Sent", "Paid", "Overdue"];
  * /billing: their own org's invoice history and status (doc §5, step 9),
  * with Pay Now (step 10) once an invoice is published and unpaid.
  */
-const CustomerBillingView = () => {
+const CustomerBillingView = ({ headerAction }) => {
   const { user } = useAuth();
   const [customer, setCustomer] = useState(null);
   const [invoices, setInvoices] = useState([]);
@@ -77,16 +78,19 @@ const CustomerBillingView = () => {
   // dominant dashboard convention (see BillingPage.jsx for the survey).
   return (
     <div className="p-4 sm:p-6 xl:p-8 w-full space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight flex items-center gap-2">
-          <div className="p-2 bg-brand-50 dark:bg-brand-900/20 rounded-xl">
-            <Receipt className="w-5 h-5 text-brand-600" />
-          </div>
-          Billing
-        </h1>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 ml-11">
-          Your invoices from Maitsys — view history, status, and pay online.
-        </p>
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight flex items-center gap-2">
+            <div className="p-2 bg-brand-50 dark:bg-brand-900/20 rounded-xl">
+              <Receipt className="w-5 h-5 text-brand-600" />
+            </div>
+            Billing
+          </h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 ml-11">
+            Your invoices from Maitsys — view history, status, and pay online.
+          </p>
+        </div>
+        {headerAction}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
@@ -171,6 +175,10 @@ const CustomerBillingView = () => {
       </div>
     </div>
   );
+};
+
+CustomerBillingView.propTypes = {
+  headerAction: PropTypes.node,
 };
 
 export default CustomerBillingView;
