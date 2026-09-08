@@ -28,8 +28,11 @@ const BillingPage = () => {
 
   if (isPrivileged && !previewAsCustomer) {
     const Active = { invoices: InvoicesTab, customers: CustomersTab, "pricing-rules": PricingRulesTab }[activeTab];
+    // max-w-6xl (1152px) left a lot of unused width on ordinary wide
+    // monitors (1920px+) — screen-2xl (1536px) still caps line length on
+    // ultra-wide displays but actually uses the space in between.
     return (
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+      <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">Billing</h1>
@@ -73,7 +76,7 @@ const BillingPage = () => {
   return (
     <div>
       {DEMO_MODE && previewAsCustomer && (
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+        <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
           <button
             onClick={() => setPreviewAsCustomer(false)}
             className="flex items-center gap-1.5 text-xs font-bold text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 px-3 py-1.5 rounded-lg border border-dashed border-gray-300 dark:border-gray-700"
