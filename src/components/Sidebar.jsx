@@ -72,7 +72,7 @@ const Tooltip = ({ label, icon: Icon, children, active = true, small = false }) 
   };
 
   return (
-    <div ref={ref} onMouseEnter={handleEnter} onMouseLeave={() => setPos(null)} className="contents">
+    <div ref={ref} onMouseEnter={handleEnter} onMouseLeave={() => setPos(null)}>
       {children}
       {pos && (
         <div
@@ -376,18 +376,6 @@ SidebarNav.propTypes = {
 /* ── Bottom bar ───────────────────────────────── */
 const SidebarBottom = ({ iconOnly, theme, toggleTheme, user, onProfileClick, onLogout, isProfileMenuOpen, onProfileModalOpen }) => (
   <div className={`border-t border-[#E2E8F0] dark:border-[#1a2744] shrink-0 ${iconOnly ? "p-2 space-y-1.5" : "p-3 space-y-2"}`}>
-    <NavTooltip label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`} icon={theme === "dark" ? Moon : Sun} collapsed={iconOnly}>
-      <div onClick={toggleTheme}
-        className={`flex items-center cursor-pointer rounded-xl transition-colors bg-[#F8FAFC] dark:bg-[#121A2F] hover:bg-[#F1F5F9] dark:hover:bg-[#1a2744] border border-[#E2E8F0] dark:border-[#1a2744]
-          ${iconOnly ? "justify-center w-10 h-10 mx-auto" : "justify-between px-3 py-2 gap-3"}`}>
-        <div className={`flex items-center ${iconOnly ? "" : "gap-3"}`}>
-          {theme === "dark" ? <Moon className="w-4 h-4 text-[#2563EB]" /> : <Sun className="w-4 h-4 text-amber-500" />}
-          {!iconOnly && <span className="text-sm font-semibold text-[#475569] dark:text-[#94A3B8]">Theme</span>}
-        </div>
-        {!iconOnly && <span className="text-xs font-bold text-[#94A3B8] capitalize">{theme || "system"}</span>}
-      </div>
-    </NavTooltip>
-
     <div className="relative">
       <NavTooltip label={user?.fullName || "Profile"} icon={UserIcon} collapsed={iconOnly}>
         <div onClick={onProfileClick}
