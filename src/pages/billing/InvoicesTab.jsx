@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Plus, Inbox } from "lucide-react";
+import { Plus, Inbox, ArrowLeft } from "lucide-react";
 import {
   getCustomers,
   getInvoices,
@@ -92,7 +92,11 @@ const InvoicesTab = () => {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-      <div className="lg:col-span-2 space-y-3">
+      {/* Below lg this is a master-detail drill-down: the list and detail
+          are never both visible on a narrow screen, so selecting an
+          invoice doesn't leave Finance scrolling past the rest of the
+          list to reach it — at lg+ both panes show side by side as before. */}
+      <div className={`lg:col-span-2 space-y-3 ${selected ? "hidden lg:block" : ""}`}>
         <button
           onClick={() => setShowBuild(true)}
           className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm py-2.5 rounded-xl transition-colors"
@@ -142,18 +146,26 @@ const InvoicesTab = () => {
         </div>
       </div>
 
-      <div className="lg:col-span-3">
+      <div className={`lg:col-span-3 ${!selected ? "hidden lg:block" : ""}`}>
         {selected ? (
-          <CustomerInvoiceDetail
-            key={selected.id}
-            invoice={selected}
-            customer={customerFor(selected.customerId)}
-            editable
-            busy={busy}
-            onSaveLines={handleSaveLines}
-            onApprove={handleApprove}
-            onPublish={handlePublish}
-          />
+          <div className="space-y-3">
+            <button
+              onClick={() => setSelectedId(null)}
+              className="lg:hidden flex items-center gap-1.5 text-sm font-bold text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+            >
+              <ArrowLeft className="w-4 h-4" /> Back to list
+            </button>
+            <CustomerInvoiceDetail
+              key={selected.id}
+              invoice={selected}
+              customer={customerFor(selected.customerId)}
+              editable
+              busy={busy}
+              onSaveLines={handleSaveLines}
+              onApprove={handleApprove}
+              onPublish={handlePublish}
+            />
+          </div>
         ) : (
           <div className="flex items-center justify-center h-full min-h-[300px] text-sm text-gray-400">
             Select an invoice to view its detail

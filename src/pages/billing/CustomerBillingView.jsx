@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Receipt, ShieldCheck } from "lucide-react";
+import { Receipt, ShieldCheck, ArrowLeft } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { getCustomers, getInvoices, payInvoice } from "../../api/billingApi";
 import { formatCurrency } from "../../utils/formatters";
@@ -83,7 +83,10 @@ const CustomerBillingView = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-        <div className="lg:col-span-2 space-y-2">
+        {/* Same master-detail drill-down as InvoicesTab: below lg only one
+            of list/detail shows at a time, so picking a bill doesn't leave
+            you scrolling past the rest of the list to see it. */}
+        <div className={`lg:col-span-2 space-y-2 ${selected ? "hidden lg:block" : ""}`}>
           {loading && <p className="text-sm text-gray-400">Loading…</p>}
           {!loading && invoices.length === 0 && (
             <div className="flex flex-col items-center justify-center p-10 text-center bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 border-dashed rounded-2xl">
@@ -124,16 +127,24 @@ const CustomerBillingView = () => {
               ))}
         </div>
 
-        <div className="lg:col-span-3">
+        <div className={`lg:col-span-3 ${!selected ? "hidden lg:block" : ""}`}>
           {selected ? (
-            <CustomerInvoiceDetail
-              key={selected.id}
-              invoice={selected}
-              customer={customer}
-              editable={false}
-              busy={busy}
-              onPayNow={handlePayNow}
-            />
+            <div className="space-y-3">
+              <button
+                onClick={() => setSelectedId(null)}
+                className="lg:hidden flex items-center gap-1.5 text-sm font-bold text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+              >
+                <ArrowLeft className="w-4 h-4" /> Back to list
+              </button>
+              <CustomerInvoiceDetail
+                key={selected.id}
+                invoice={selected}
+                customer={customer}
+                editable={false}
+                busy={busy}
+                onPayNow={handlePayNow}
+              />
+            </div>
           ) : (
             !loading && (
               <div className="flex items-center justify-center h-full min-h-[200px] text-sm text-gray-400">

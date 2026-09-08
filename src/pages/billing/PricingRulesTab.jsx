@@ -79,7 +79,9 @@ const PricingRulesTab = () => {
   const customerName = (id) => customers.find((c) => c.id === id)?.name ?? id;
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+    // See CustomersTab.jsx for why this is lg, not md — md left too little
+    // room per column once the sidebar's width is subtracted.
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
       <div className="col-span-1 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 h-fit shadow-sm">
         <h3 className="font-bold text-gray-900 dark:text-white mb-4">New Pricing Rule</h3>
         <form onSubmit={handleCreate} className="space-y-4">

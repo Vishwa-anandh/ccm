@@ -46,7 +46,12 @@ const CustomersTab = () => {
   };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+    // md (768px) looked wide enough in isolation, but once the sidebar's
+    // width is subtracted from that, a 3-column split left ~170px per
+    // column — truncating the form's inputs. lg (1024px) is where there's
+    // genuinely enough room, matching the same breakpoint the Invoices/
+    // Billing drill-down uses.
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
       <div className="col-span-1 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 h-fit shadow-sm">
         <h3 className="font-bold text-gray-900 dark:text-white mb-4">New Customer</h3>
         <form onSubmit={handleCreate} className="space-y-4">
