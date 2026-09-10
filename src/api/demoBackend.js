@@ -83,6 +83,141 @@ const DASHBOARD_SUMMARY = {
   monthly: MONTHLY,
 };
 
+/* ── Azure Overview: per-resource-per-day mock dataset ────────────
+ * Internal only — never shipped raw to the browser. Every
+ * /azure/overview/* endpoint aggregates this server-side and returns
+ * pre-aggregated JSON, matching this file's existing convention for
+ * AzureCostPage/AzureOverallDashboard's other endpoints. */
+
+// id, service, resourceGroup, applicationName ('' = untagged),
+// businessApplication (null = untagged), environment, subscriptionId,
+// dailyBaseCost (USD)
+const AZURE_RESOURCES = [
+  ['vm-commerce-01', 'Virtual Machines', 'rg-commerce-prod', 'Commerce', 'Digital Experience', 'Production', 'az-1', 34],
+  ['sql-commerce-01', 'SQL Database', 'rg-commerce-prod', 'Commerce', 'Digital Experience', 'Production', 'az-1', 27],
+  ['aks-customer-01', 'Azure Kubernetes Service', 'rg-customer-prod', 'Customer Portal', 'Digital Experience', 'Production', 'az-1', 41],
+  ['app-customer-api', 'App Service', 'rg-customer-prod', 'Customer Portal', 'Digital Experience', 'Production', 'az-1', 14],
+  ['stanalytics001', 'Storage', 'rg-data-prod', 'Analytics', 'Enterprise Systems', 'Production', 'az-1', 13],
+  ['syn-analytics-01', 'Azure Synapse Analytics', 'rg-data-prod', 'Analytics', 'Enterprise Systems', 'Production', 'az-1', 32],
+  ['vm-erp-01', 'Virtual Machines', 'rg-erp-prod', 'ERP', 'Enterprise Systems', 'Production', 'az-1', 21],
+  ['sql-erp-01', 'SQL Database', 'rg-erp-prod', 'ERP', 'Enterprise Systems', 'Production', 'az-1', 17],
+  ['log-shared-01', 'Azure Monitor', 'rg-shared', '', null, 'Production', 'az-1', 10],
+  ['vnet-shared-01', 'Virtual Network', 'rg-shared', '', null, 'Production', 'az-1', 6],
+  ['vm-sandbox-01', 'Virtual Machines', 'rg-platform-dev', 'Platform', 'Enterprise Systems', 'Development', 'az-2', 7],
+  ['stdev001', 'Storage', 'rg-platform-dev', 'Platform', 'Enterprise Systems', 'Development', 'az-2', 3],
+  ['vm-sandbox-02', 'Virtual Machines', 'rg-platform-dev', 'Platform', 'Enterprise Systems', 'Development', 'az-2', 6],
+  ['sql-dev-01', 'SQL Database', 'rg-platform-dev', 'Platform', 'Enterprise Systems', 'Development', 'az-2', 4],
+];
+
+// CostCenter is a fourth, independent tag dimension (not derived from
+// applicationName at read-time — computed once here, matching how a
+// real cost-management tool would store a separate tag key).
+const AZURE_COST_CENTER_BY_APP = {
+  Commerce: 'Digital',
+  'Customer Portal': 'Digital',
+  Analytics: 'Operations',
+  ERP: 'Operations',
+  Platform: 'IT',
+  '': 'IT',
+};
+
+const AZURE_DAY_MS = 86400000;
+const AZURE_DATA_START = '2026-06-01';
+const AZURE_DATA_END = '2026-09-09'; // "today" for this demo build
+const AZURE_RESERVATION_DATE = '2026-09-01';
+const AZURE_RESERVATION_COST = 2400;
+const AZURE_RESERVATION_AMORTIZED = round2(AZURE_RESERVATION_COST / 90); // illustrative ~90-day spread
+
+function buildAzureRecords() {
+  const records = [];
+  const startT = Date.parse(AZURE_DATA_START + 'T00:00:00Z');
+  const endT = Date.parse(AZURE_DATA_END + 'T00:00:00Z');
+  let n = 0;
+  for (let t = startT; t <= endT; t += AZURE_DAY_MS, n++) {
+    const date = new Date(t).toISOString().slice(0, 10);
+    AZURE_RESOURCES.forEach((r, i) => {
+      const [resourceId, service, group, applicationName, businessApplication, environment, subscriptionId, dailyBase] = r;
+      const cost = round2(dailyBase * (1 + 0.11 * Math.sin(n * 0.47 + i) + n * 0.0015));
+      records.push({
+        date,
+        resourceId,
+        resourceName: resourceId,
+        service,
+        group,
+        applicationName,
+        businessApplication,
+        environment,
+        costCenter: AZURE_COST_CENTER_BY_APP[applicationName] ?? 'IT',
+        subscriptionId,
+        actualCost: cost,
+        amortizedCost: cost,
+      });
+    });
+    if (date === AZURE_RESERVATION_DATE) {
+      records.push({
+        date,
+        resourceId: null,
+        resourceName: 'Reservation purchase / unused commitment',
+        service: 'Reservations',
+        group: null,
+        applicationName: '',
+        businessApplication: null,
+        environment: 'Production',
+        costCenter: 'IT',
+        subscriptionId: 'az-1',
+        actualCost: AZURE_RESERVATION_COST,
+        amortizedCost: AZURE_RESERVATION_AMORTIZED,
+      });
+    }
+  }
+  return records;
+}
+const AZURE_RECORDS = buildAzureRecords();
+
+// Every /azure/overview/* endpoint's shared filter step. `costBasis`
+// picks which cost field aggregation reads; every other param narrows
+// which records are included.
+function filterAzureRecords(params = {}) {
+  const from = params.from || AZURE_DATA_START;
+  const to = params.to || AZURE_DATA_END;
+  const costBasis = params.costBasis === 'amortized' ? 'amortizedCost' : 'actualCost';
+  const search = (params.search || '').trim().toLowerCase();
+
+  return AZURE_RECORDS.filter((rec) => {
+    if (rec.date < from || rec.date > to) return false;
+    if (params.subscriptionId && params.subscriptionId !== 'all' && rec.subscriptionId !== params.subscriptionId) return false;
+    if (params.service && rec.service !== params.service) return false;
+    if (params.group && rec.group !== params.group) return false;
+    if (params.tagKey && params.tagValue) {
+      const tagField = { ApplicationName: 'applicationName', BusinessApplication: 'businessApplication', Environment: 'environment', CostCenter: 'costCenter' }[params.tagKey];
+      const val = tagField ? (rec[tagField] || '') : '';
+      const wanted = params.tagValue === 'Untagged' ? '' : params.tagValue;
+      if ((val || '') !== wanted) return false;
+    }
+    if (params.appKey && params.app) {
+      const appField = params.appKey === 'BusinessApplication' ? 'businessApplication' : 'applicationName';
+      const val = rec[appField] || '';
+      const wanted = params.app === 'Untagged' ? '' : params.app;
+      if (val !== wanted) return false;
+    }
+    if (search) {
+      const haystack = `${rec.resourceName || ''} ${rec.group || ''}`.toLowerCase();
+      if (!haystack.includes(search)) return false;
+    }
+    return true;
+  }).map((rec) => ({ ...rec, cost: rec[costBasis] }));
+}
+
+// Same-length window immediately preceding `from..to`, for period-over-
+// period comparisons (KPI "Previous period", trend chart, app/service
+// change columns).
+function previousAzurePeriod(from, to) {
+  const days = Math.round((Date.parse(to) - Date.parse(from)) / AZURE_DAY_MS) + 1;
+  const prevTo = new Date(Date.parse(from) - AZURE_DAY_MS).toISOString().slice(0, 10);
+  const prevFrom = new Date(Date.parse(from) - days * AZURE_DAY_MS).toISOString().slice(0, 10);
+  return { from: prevFrom, to: prevTo };
+}
+
 const RECOMMENDATIONS = [
   { id: "rec-1", title: 'Resize underutilized VM "web-app-03"', description: "CPU utilization has averaged 6% over the last 30 days.", provider: "azure", category: "Compute", estimated_savings: 412.5, priority: "high" },
   { id: "rec-2", title: "Purchase Reserved Instances for RDS", description: "Switch 4 on-demand db.r5.large instances to 1-yr reserved.", provider: "aws", category: "Database", estimated_savings: 860.0, priority: "high" },
@@ -652,6 +787,68 @@ export async function demoAdapter(config) {
       });
       return ok(invoice, config);
     }
+  }
+
+  if (method === "get" && path === "/azure/overview/filter-options") {
+    // Include subscriptionId — AzureCostPage.jsx (reached via the Resource
+    // Groups tab's "Open detailed dashboard" link) reads it directly off
+    // the account object passed through onSelectAccount, same shape
+    // AzureOverallDashboard used to construct.
+    const subs = DASHBOARD_SUMMARY.accounts.azure.map((a) => ({ id: a.id, name: a.name, subscriptionId: a.subscriptionId }));
+    const applications = Array.from(new Set(AZURE_RECORDS.map((r) => r.applicationName || 'Untagged')));
+    const businessApplications = Array.from(new Set(AZURE_RECORDS.map((r) => r.businessApplication || 'Untagged')));
+    const tagValuesByKey = {
+      ApplicationName: applications,
+      BusinessApplication: businessApplications,
+      Environment: Array.from(new Set(AZURE_RECORDS.map((r) => r.environment))),
+      CostCenter: Array.from(new Set(AZURE_RECORDS.map((r) => r.costCenter))),
+    };
+    const services = Array.from(new Set(AZURE_RESOURCES.map((r) => r[1]))).concat('Reservations');
+    const groups = Array.from(new Set(AZURE_RESOURCES.map((r) => r[2])));
+    return ok({ subscriptions: subs, applications, tagKeys: Object.keys(tagValuesByKey), tagValuesByKey, services, groups }, config);
+  }
+
+  if (method === "get" && path === "/azure/overview/kpis") {
+    const params = config.params || {};
+    const from = params.from || AZURE_DATA_START;
+    const to = params.to || AZURE_DATA_END;
+    const filtered = filterAzureRecords(params);
+    const totalCost = round2(filtered.reduce((s, r) => s + r.cost, 0));
+    const prevRange = previousAzurePeriod(from, to);
+    const prevFiltered = filterAzureRecords({ ...params, from: prevRange.from, to: prevRange.to });
+    const previousPeriodCost = round2(prevFiltered.reduce((s, r) => s + r.cost, 0));
+    const dayCount = Math.round((Date.parse(to) - Date.parse(from)) / AZURE_DAY_MS) + 1;
+    const untaggedCost = round2(filtered.filter((r) => !r.applicationName).reduce((s, r) => s + r.cost, 0));
+    return ok({
+      totalCost, previousPeriodCost,
+      avgDailyCost: round2(totalCost / dayCount),
+      untaggedCost,
+      recordCount: filtered.length,
+      currency: "USD",
+      periodLabel: `${from} → ${to} · ${dayCount} days`,
+      previousPeriodLabel: `${prevRange.from} → ${prevRange.to}`,
+    }, config);
+  }
+
+  if (method === "get" && path === "/azure/overview/trend") {
+    const params = config.params || {};
+    const from = params.from || AZURE_DATA_START;
+    const to = params.to || AZURE_DATA_END;
+    const filtered = filterAzureRecords(params);
+    const byDate = {};
+    filtered.forEach((r) => { byDate[r.date] = (byDate[r.date] || 0) + r.cost; });
+    const current = Object.keys(byDate).sort().map((date) => ({ date, cost: round2(byDate[date]) }));
+
+    const prevRange = previousAzurePeriod(from, to);
+    const prevFiltered = filterAzureRecords({ ...params, from: prevRange.from, to: prevRange.to });
+    const byPrevDate = {};
+    prevFiltered.forEach((r) => { byPrevDate[r.date] = (byPrevDate[r.date] || 0) + r.cost; });
+    const prevDates = Object.keys(byPrevDate).sort();
+    // Aligned by day-offset (previous[0] pairs with current[0], etc.), matching
+    // the reference's "Previous period, aligned by day" behavior.
+    const previous = prevDates.map((date, i) => ({ date: current[i]?.date ?? date, cost: round2(byPrevDate[date]) }));
+
+    return ok({ current, previous }, config);
   }
 
   // Anything else isn't specifically mocked yet — respond empty rather than
