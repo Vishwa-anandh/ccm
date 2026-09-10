@@ -159,7 +159,7 @@ const CustomerBillingView = ({ headerAction }) => {
                 key={selected.id}
                 invoice={selected}
                 customer={customer}
-                editable={false}
+                allowPayment
                 busy={busy}
                 onPayNow={handlePayNow}
               />

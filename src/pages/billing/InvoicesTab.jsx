@@ -1,26 +1,26 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Plus, Inbox, ArrowLeft } from "lucide-react";
-import { getCustomers, getInvoices, getPricingRules, updateInvoiceLines } from "../../api/billingApi";
+import { getCustomers, getInvoices } from "../../api/billingApi";
 import { formatCurrency } from "../../utils/formatters";
 import CustomerInvoiceDetail, { StatusPill } from "../../components/billing/CustomerInvoiceDetail";
-import { fireToast } from "../../components/ToastProvider";
 
 /**
- * Invoices — Finance's full list across every customer. Creating an
- * invoice (GenerateInvoicePage) shows it here immediately — no Draft/
- * Approved holding state or Approve/Publish step. It's already visible on
- * the matching customer's own Billing view with a Pay Now action.
+ * Invoices — Finance's full list across every customer, view-only.
+ * Creating an invoice (GenerateInvoicePage) is where Discount %/
+ * Adjustment %/Overall Adjustment % get set, and it shows up here
+ * immediately — no Draft/Approved holding state, no further editing, no
+ * Approve/Publish step. It's already visible on the matching customer's
+ * own Billing view with a Pay Now action (which only the customer gets —
+ * Finance just views the invoice here).
  */
 const InvoicesTab = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [customers, setCustomers] = useState([]);
   const [invoices, setInvoices] = useState([]);
-  const [pricingRules, setPricingRules] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState(location.state?.selectedInvoiceId ?? null);
-  const [busy, setBusy] = useState(false);
 
   const sortedInvoices = useMemo(
     () => invoices.slice().sort((a, b) => (a.invoiceDate < b.invoiceDate ? 1 : -1)),
@@ -30,10 +30,9 @@ const InvoicesTab = () => {
   const load = async (keepSelected = true) => {
     setLoading(true);
     try {
-      const [c, inv, rules] = await Promise.all([getCustomers(), getInvoices(), getPricingRules()]);
+      const [c, inv] = await Promise.all([getCustomers(), getInvoices()]);
       setCustomers(c);
       setInvoices(inv);
-      setPricingRules(rules);
       if (!keepSelected) {
         const sorted = inv.slice().sort((a, b) => (a.invoiceDate < b.invoiceDate ? 1 : -1));
         setSelectedId(sorted[0]?.id ?? null);
@@ -57,19 +56,6 @@ const InvoicesTab = () => {
 
   const customerFor = (id) => customers.find((c) => c.id === id);
   const selected = invoices.find((i) => i.id === selectedId);
-
-  const handleSaveLines = async (lines, taxPct, overallAdjustmentPct) => {
-    setBusy(true);
-    try {
-      const updated = await updateInvoiceLines(selected.id, { lines, taxPct, overallAdjustmentPct });
-      setInvoices((prev) => prev.map((i) => (i.id === updated.id ? updated : i)));
-      fireToast("Changes saved", "success");
-    } catch (err) {
-      fireToast(err.response?.data?.error || "Couldn't save changes.", "error");
-    } finally {
-      setBusy(false);
-    }
-  };
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-10 gap-4">
@@ -144,10 +130,6 @@ const InvoicesTab = () => {
               key={selected.id}
               invoice={selected}
               customer={customerFor(selected.customerId)}
-              editable
-              pricingRules={pricingRules}
-              busy={busy}
-              onSaveLines={handleSaveLines}
             />
           </div>
         ) : (
