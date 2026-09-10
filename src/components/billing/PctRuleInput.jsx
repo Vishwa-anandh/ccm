@@ -22,7 +22,7 @@ const PctRuleInput = ({ value, onChange, rules, disabled = false }) => {
           const rule = rules.find((r) => r.id === e.target.value);
           if (rule) onChange(rule.percentage);
         }}
-        className="rounded-lg border border-gray-200 dark:border-gray-700 bg-transparent px-1 py-1 text-[10px] max-w-[92px] disabled:opacity-50"
+        className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-1 py-1 text-[10px] max-w-[92px] cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
         title="Pick a saved Pricing Rule"
       >
         <option value="">Custom</option>
@@ -39,7 +39,8 @@ const PctRuleInput = ({ value, onChange, rules, disabled = false }) => {
         value={value}
         disabled={disabled}
         onChange={(e) => onChange(e.target.value === "" ? 0 : Number(e.target.value))}
-        className="w-16 text-right rounded-lg border border-gray-200 dark:border-gray-700 bg-transparent px-1.5 py-1 disabled:opacity-50"
+        title="Type a custom percentage"
+        className="w-16 text-right rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-1.5 py-1 focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-brand-400 disabled:cursor-not-allowed disabled:opacity-50"
       />
     </div>
   );

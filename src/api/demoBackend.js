@@ -682,11 +682,11 @@ export async function demoAdapter(config) {
       return fail("At least one line item is required.", config, 422);
     }
 
-    // Manually-built lines start with no discount/adjustment — there's no
-    // vendor invoice to discount against here. Finance picks a Pricing
-    // Rule or types a % for each line right on the invoice right after
-    // it's created (CustomerInvoiceDetail — shown immediately, no
-    // Draft step to wait through).
+    // Discount % can be picked (a Pricing Rule) or typed per line right on
+    // this form (LineItemsEditor's optional Discount column). Maitsys
+    // Adjustment % always starts at 0 here — there's no vendor invoice to
+    // adjust against yet — and is set afterward right on the created
+    // invoice (CustomerInvoiceDetail — shown immediately, no Draft step).
     const lines = rows.map((r, i) => ({
       lineNumber: i + 1,
       description: r.description,
@@ -695,7 +695,7 @@ export async function demoAdapter(config) {
       ...calcLine({
         quantity: r.quantity,
         vendorUnitPrice: r.unitPrice,
-        discountPct: 0,
+        discountPct: r.discountPct ?? 0,
         adjustmentPct: 0,
       }),
     }));

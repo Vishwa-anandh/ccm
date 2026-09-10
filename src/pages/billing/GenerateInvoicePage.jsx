@@ -41,7 +41,7 @@ const GenerateInvoicePage = () => {
   const [customFields, setCustomFields] = useState([]);
   const [columns, setColumns] = useState([]);
   const [rows, setRows] = useState([
-    { id: crypto.randomUUID(), description: "", quantity: 1, unitPrice: 0, extra: {} },
+    { id: crypto.randomUUID(), description: "", quantity: 1, unitPrice: 0, discountPct: 0, extra: {} },
   ]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -148,7 +148,7 @@ const GenerateInvoicePage = () => {
           </div>
 
           <p className="text-[10px] text-gray-400 -mt-2">
-            Line items below start at 0% discount/adjustment — pick a Pricing Rule or set each line's % right after creating the invoice.
+            Pick a Pricing Rule or type a custom % for each line's Discount below. Maitsys Adjustment % is set afterward, right on the created invoice.
           </p>
 
           <div className="grid grid-cols-2 gap-3">
@@ -225,6 +225,7 @@ const GenerateInvoicePage = () => {
               rows={rows}
               onColumnsChange={setColumns}
               onRowsChange={setRows}
+              pricingRules={pricingRules}
             />
           </div>
         </div>

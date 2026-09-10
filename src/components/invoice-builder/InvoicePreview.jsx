@@ -17,7 +17,12 @@ const MAITSYS_SENDER = {
  */
 const InvoicePreview = forwardRef(
   ({ invoiceNumber, invoiceDate, dueDate, billTo, customFields, columns, rows, taxPct, overallAdjustmentPct = 0, notes, template = "classic" }, ref) => {
-    const lineAmounts = rows.map((r) => round2(Number(r.quantity || 0) * Number(r.unitPrice || 0)));
+    // Folds each row's own Discount % (set via LineItemsEditor's optional
+    // Discount column — undefined/0 for callers that don't offer it, e.g.
+    // the standalone Invoice Builder) into the printed Amount.
+    const lineAmounts = rows.map((r) =>
+      round2(Number(r.quantity || 0) * Number(r.unitPrice || 0) * (1 - Number(r.discountPct || 0) / 100)),
+    );
     const lineSubtotal = round2(lineAmounts.reduce((s, a) => s + a, 0));
     const adjustmentAmount = round2(lineSubtotal * (Number(overallAdjustmentPct || 0) / 100));
     const subtotal = round2(lineSubtotal + adjustmentAmount);
@@ -152,6 +157,7 @@ InvoicePreview.propTypes = {
       description: PropTypes.string.isRequired,
       quantity: PropTypes.number.isRequired,
       unitPrice: PropTypes.number.isRequired,
+      discountPct: PropTypes.number,
       extra: PropTypes.object.isRequired,
     }),
   ).isRequired,
