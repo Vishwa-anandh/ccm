@@ -915,6 +915,93 @@ export async function demoAdapter(config) {
     return ok({ items }, config);
   }
 
+  if (method === "get" && path === "/azure/overview/resource-groups") {
+    const params = config.params || {};
+    const filtered = filterAzureRecords(params);
+    const map = {};
+    filtered.forEach((r) => {
+      if (!r.group) return; // the reservation pseudo-resource has no group
+      const key = r.group;
+      map[key] = map[key] || { name: key, cost: 0, subscriptionId: r.subscriptionId, resources: new Set() };
+      map[key].cost += r.cost;
+      map[key].resources.add(r.resourceId ?? r.resourceName);
+    });
+    const items = Object.values(map)
+      .map((g) => ({ name: g.name, cost: round2(g.cost), resourceCount: g.resources.size, subscriptionId: g.subscriptionId }))
+      .sort((a, b) => b.cost - a.cost);
+    return ok({ items }, config);
+  }
+
+  if (method === "get" && path === "/azure/overview/tags") {
+    const params = config.params || {};
+    const tagKey = params.tagKey || 'ApplicationName';
+    const tagField = { ApplicationName: 'applicationName', BusinessApplication: 'businessApplication', Environment: 'environment', CostCenter: 'costCenter' }[tagKey] || 'applicationName';
+    const filtered = filterAzureRecords(params);
+    const distinctIds = new Set(filtered.map((r) => r.resourceId ?? r.resourceName));
+    const taggedIds = new Set(filtered.filter((r) => r[tagField]).map((r) => r.resourceId ?? r.resourceName));
+    const totalRecordCount = distinctIds.size;
+    const taggedRecordCount = taggedIds.size;
+    const costWithoutTag = round2(filtered.filter((r) => !r[tagField]).reduce((s, r) => s + r.cost, 0));
+    const map = {};
+    filtered.forEach((r) => {
+      const key = r[tagField] || 'Untagged';
+      map[key] = (map[key] || 0) + r.cost;
+    });
+    const values = Object.keys(map)
+      .map((value) => ({ value, cost: round2(map[value]) }))
+      .sort((a, b) => b.cost - a.cost);
+    return ok({
+      coveragePct: totalRecordCount ? round2((taggedRecordCount / totalRecordCount) * 100) : 0,
+      taggedRecordCount, totalRecordCount, costWithoutTag, values,
+    }, config);
+  }
+
+  if (method === "get" && path === "/azure/overview/resources") {
+    const params = config.params || {};
+    const groupBy = params.groupBy || 'resource';
+    const from = params.from || AZURE_DATA_START;
+    const to = params.to || AZURE_DATA_END;
+    const filtered = filterAzureRecords(params);
+    const prevRange = previousAzurePeriod(from, to);
+    const prevFiltered = filterAzureRecords({ ...params, from: prevRange.from, to: prevRange.to });
+
+    const keyOf = (r) => (groupBy === 'service' ? r.service : groupBy === 'group' ? (r.group || 'Unassigned') : (r.resourceId ?? r.resourceName));
+    const build = (records) => {
+      const map = {};
+      records.forEach((r) => {
+        const key = keyOf(r);
+        map[key] = map[key] || { key, name: groupBy === 'resource' ? r.resourceName : key, group: r.group, cost: 0 };
+        map[key].cost += r.cost;
+      });
+      return map;
+    };
+    const current = build(filtered);
+    const previous = build(prevFiltered);
+    const total = Object.values(current).reduce((s, v) => s + v.cost, 0) || 1;
+    const items = Object.values(current)
+      .map((row) => ({
+        id: row.key,
+        name: row.name,
+        resourceGroup: row.group || null,
+        cost: round2(row.cost),
+        share: round2((row.cost / total) * 100),
+        previousCost: round2(previous[row.key]?.cost || 0),
+        change: previous[row.key] ? round2(((row.cost - previous[row.key].cost) / previous[row.key].cost) * 100) : null, // null = "New cost"
+      }))
+      .sort((a, b) => b.cost - a.cost);
+    return ok({ items, groupBy }, config);
+  }
+
+  if (method === "get" && path === "/azure/overview/daily") {
+    const params = config.params || {};
+    const filtered = filterAzureRecords(params);
+    const byDate = {};
+    filtered.forEach((r) => { byDate[r.date] = (byDate[r.date] || 0) + r.cost; });
+    const days = Object.keys(byDate).sort().map((date) => ({ date, cost: round2(byDate[date]) }));
+    const highestDay = days.reduce((max, d) => (d.cost > (max?.cost ?? -1) ? d : max), null);
+    return ok({ days, highestDay }, config);
+  }
+
   // Anything else isn't specifically mocked yet — respond empty rather than
   // failing the request, so pages we haven't seeded degrade gracefully
   // instead of throwing network errors.
