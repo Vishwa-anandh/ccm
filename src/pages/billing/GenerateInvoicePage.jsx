@@ -1,6 +1,6 @@
 import React, { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, RefreshCw, AlertTriangle, FileStack } from "lucide-react";
+import { ArrowLeft, RefreshCw, AlertTriangle, FileStack, Eye, EyeOff } from "lucide-react";
 import { getCustomers, getPricingRules, getPaymentTerms, buildInvoice } from "../../api/billingApi";
 import { fireToast } from "../../components/ToastProvider";
 import CustomFieldsEditor from "../../components/invoice-builder/CustomFieldsEditor";
@@ -52,6 +52,7 @@ const GenerateInvoicePage = () => {
   ]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [showPreview, setShowPreview] = useState(true);
 
   React.useEffect(() => {
     (async () => {
@@ -120,14 +121,24 @@ const GenerateInvoicePage = () => {
             Add line items, columns, and custom fields by hand — the preview updates live.
           </p>
         </div>
-        <button
-          onClick={handleCreate}
-          disabled={busy || !canCreate}
-          className="btn-primary disabled:opacity-50"
-        >
-          {busy && <RefreshCw className="w-4 h-4 animate-spin" />}
-          Create Invoice
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowPreview((v) => !v)}
+            className="flex items-center gap-1.5 text-xs font-bold text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700"
+            title={showPreview ? "Hide the invoice preview" : "Show the invoice preview"}
+          >
+            {showPreview ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+            {showPreview ? "Hide Preview" : "Show Preview"}
+          </button>
+          <button
+            onClick={handleCreate}
+            disabled={busy || !canCreate}
+            className="btn-primary disabled:opacity-50"
+          >
+            {busy && <RefreshCw className="w-4 h-4 animate-spin" />}
+            Create Invoice
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -137,7 +148,7 @@ const GenerateInvoicePage = () => {
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className={`grid grid-cols-1 gap-6 ${showPreview ? "lg:grid-cols-2" : ""}`}>
         <div className="space-y-5 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-5 shadow-card">
           <div>
             <label className="block text-xs font-semibold text-gray-500 mb-1">Customer</label>
@@ -237,28 +248,30 @@ const GenerateInvoicePage = () => {
           </div>
         </div>
 
-        <div className="bg-gray-100 dark:bg-gray-950 rounded-2xl p-4 overflow-auto lg:sticky lg:top-4 lg:self-start lg:max-h-[calc(100vh-6rem)]">
-          <div className="shadow-lg mx-auto" style={{ maxWidth: 640 }}>
-            <InvoicePreview
-              ref={previewRef}
-              invoiceNumber="PREVIEW"
-              invoiceDate={invoiceDate}
-              dueDate={computedDueDate}
-              billTo={{
-                name: customer?.name ?? "",
-                address: customer?.billingAddress ?? "",
-                email: customer?.primaryContactEmail ?? "",
-              }}
-              customFields={customFields}
-              columns={columns}
-              rows={rows}
-              taxPct={taxPct}
-              overallAdjustmentPct={overallAdjustmentPct}
-              notes=""
-              template={template}
-            />
+        {showPreview && (
+          <div className="bg-gray-100 dark:bg-gray-950 rounded-2xl p-4 overflow-auto lg:sticky lg:top-4 lg:self-start lg:max-h-[calc(100vh-6rem)]">
+            <div className="shadow-lg mx-auto" style={{ maxWidth: 640 }}>
+              <InvoicePreview
+                ref={previewRef}
+                invoiceNumber="PREVIEW"
+                invoiceDate={invoiceDate}
+                dueDate={computedDueDate}
+                billTo={{
+                  name: customer?.name ?? "",
+                  address: customer?.billingAddress ?? "",
+                  email: customer?.primaryContactEmail ?? "",
+                }}
+                customFields={customFields}
+                columns={columns}
+                rows={rows}
+                taxPct={taxPct}
+                overallAdjustmentPct={overallAdjustmentPct}
+                notes=""
+                template={template}
+              />
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
