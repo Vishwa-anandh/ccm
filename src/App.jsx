@@ -34,6 +34,7 @@ import InvoiceDemoPage from "./pages/InvoiceDemoPage";
 import InvoiceBuilderPage from "./pages/InvoiceBuilderPage";
 import BillingPage from "./pages/billing/BillingPage";
 import GenerateInvoicePage from "./pages/billing/GenerateInvoicePage";
+import CustomersPage from "./pages/billing/CustomersPage";
 import NotFoundPage from "./pages/NotFoundPage";
 import SmartAlertsDashboard from "./pages/SmartAlertsDashboard";
 import SubscriptionExpiredPage from "./pages/SubscriptionExpiredPage";
@@ -368,6 +369,17 @@ function App() {
                         label="Generate Customer Invoice"
                       >
                         <GenerateInvoicePage />
+                      </PermissionRoute>
+                    }
+                  />
+                  <Route
+                    path="/billing/customers"
+                    element={
+                      <PermissionRoute
+                        check={(u) => isPrivileged(u)}
+                        label="Customers"
+                      >
+                        <CustomersPage />
                       </PermissionRoute>
                     }
                   />

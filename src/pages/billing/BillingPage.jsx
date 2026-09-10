@@ -1,15 +1,12 @@
 import React, { useState } from "react";
-import { Users, Percent, Receipt as ReceiptIcon, Eye, ShieldCheck } from "lucide-react";
+import { Percent, Receipt as ReceiptIcon } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
-import { DEMO_MODE } from "../../api/demoBackend";
-import CustomersTab from "./CustomersTab";
 import PricingRulesTab from "./PricingRulesTab";
 import InvoicesTab from "./InvoicesTab";
 import CustomerBillingView from "./CustomerBillingView";
 
 const TABS = [
   { id: "invoices", label: "Invoices", icon: ReceiptIcon },
-  { id: "customers", label: "Customers", icon: Users },
   { id: "pricing-rules", label: "Pricing Rules", icon: Percent },
 ];
 
@@ -19,15 +16,18 @@ const TABS = [
  * price, approve, publish); everyone else gets their own read-only invoice
  * history with Pay Now. No PermissionRoute/AccessDenied needed — a
  * customer isn't denied anything here, they just see their own bills.
+ *
+ * Customers (billable-account management) moved to its own sidebar
+ * destination (/billing/customers, CustomersPage.jsx) — it's a distinct
+ * workflow from invoicing, not a tab of it.
  */
 const BillingPage = () => {
   const { user } = useAuth();
   const isPrivileged = user?.role === "admin" || user?.role === "owner";
   const [activeTab, setActiveTab] = useState("invoices");
-  const [previewAsCustomer, setPreviewAsCustomer] = useState(false);
 
-  if (isPrivileged && !previewAsCustomer) {
-    const Active = { invoices: InvoicesTab, customers: CustomersTab, "pricing-rules": PricingRulesTab }[activeTab];
+  if (isPrivileged) {
+    const Active = { invoices: InvoicesTab, "pricing-rules": PricingRulesTab }[activeTab];
     // Full-width, matching the app's actual dominant dashboard convention
     // (HomePage, BudgetsPage, SyncLogsPage, UserManagement, Recommendations,
     // SmartAlerts, SubscriptionManagement) — only InvoicesPage.jsx and
@@ -46,15 +46,6 @@ const BillingPage = () => {
               Generate branded customer invoices from already-ingested vendor invoices.
             </p>
           </div>
-          {DEMO_MODE && (
-            <button
-              onClick={() => setPreviewAsCustomer(true)}
-              className="flex items-center gap-1.5 text-xs font-bold text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 px-3 py-1.5 rounded-lg border border-dashed border-gray-300 dark:border-gray-700"
-              title="Demo-only: see this same module as a customer would"
-            >
-              <Eye className="w-3.5 h-3.5" /> Preview as customer
-            </button>
-          )}
         </div>
 
         <div className="flex gap-1 bg-gray-100 dark:bg-gray-800 rounded-xl p-1 w-fit">
@@ -79,21 +70,7 @@ const BillingPage = () => {
     );
   }
 
-  return (
-    <CustomerBillingView
-      headerAction={
-        DEMO_MODE &&
-        previewAsCustomer && (
-          <button
-            onClick={() => setPreviewAsCustomer(false)}
-            className="flex items-center gap-1.5 text-xs font-bold text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 px-3 py-1.5 rounded-lg border border-dashed border-gray-300 dark:border-gray-700 shrink-0"
-          >
-            <ShieldCheck className="w-3.5 h-3.5" /> Back to Finance console
-          </button>
-        )
-      }
-    />
-  );
+  return <CustomerBillingView />;
 };
 
 export default BillingPage;

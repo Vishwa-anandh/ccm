@@ -19,6 +19,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Receipt,
+  Building2,
 } from "lucide-react";
 import ProfileModal from "./ProfileModal";
 import { useAuth } from "../context/AuthContext";
@@ -301,6 +302,16 @@ const SidebarNav = ({
         </NavTooltip>
       ) : (
         <LockedNavItem icon={Receipt} label="Billing" collapsed={iconOnly} />
+      )}
+
+      {features.customerInvoicing ? (
+        <NavTooltip label="Customers" icon={Building2} collapsed={iconOnly}>
+          <NavLink to="/billing/customers" onClick={closeMobileMenu} className={({ isActive }) => ni(isActive)}>
+            <Building2 className="w-5 h-5 shrink-0" />{!iconOnly && <span>Customers</span>}
+          </NavLink>
+        </NavTooltip>
+      ) : (
+        <LockedNavItem icon={Building2} label="Customers" collapsed={iconOnly} />
       )}
 
       {features.smartAlerts ? (
