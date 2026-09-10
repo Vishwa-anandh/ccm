@@ -851,6 +851,70 @@ export async function demoAdapter(config) {
     return ok({ current, previous }, config);
   }
 
+  if (method === "get" && path === "/azure/overview/applications") {
+    const params = config.params || {};
+    const appKey = params.appKey === 'BusinessApplication' ? 'businessApplication' : 'applicationName';
+    const from = params.from || AZURE_DATA_START;
+    const to = params.to || AZURE_DATA_END;
+    const filtered = filterAzureRecords(params);
+    const prevRange = previousAzurePeriod(from, to);
+    const prevFiltered = filterAzureRecords({ ...params, from: prevRange.from, to: prevRange.to });
+
+    const groupCost = (records) => {
+      const map = {};
+      records.forEach((r) => {
+        const key = r[appKey] || 'Untagged';
+        map[key] = (map[key] || 0) + r.cost;
+      });
+      return map;
+    };
+    const current = groupCost(filtered);
+    const previous = groupCost(prevFiltered);
+    const resourceCounts = {};
+    filtered.forEach((r) => {
+      const key = r[appKey] || 'Untagged';
+      resourceCounts[key] = resourceCounts[key] || new Set();
+      resourceCounts[key].add(r.resourceId ?? r.resourceName);
+    });
+    const total = Object.values(current).reduce((s, v) => s + v, 0) || 1;
+    const items = Object.keys(current)
+      .map((name) => ({
+        name,
+        cost: round2(current[name]),
+        previousCost: round2(previous[name] || 0),
+        share: round2((current[name] / total) * 100),
+        resourceCount: resourceCounts[name]?.size ?? 0,
+      }))
+      .sort((a, b) => b.cost - a.cost);
+    return ok({ items }, config);
+  }
+
+  if (method === "get" && path === "/azure/overview/services") {
+    const params = config.params || {};
+    const from = params.from || AZURE_DATA_START;
+    const to = params.to || AZURE_DATA_END;
+    const filtered = filterAzureRecords(params);
+    const prevRange = previousAzurePeriod(from, to);
+    const prevFiltered = filterAzureRecords({ ...params, from: prevRange.from, to: prevRange.to });
+
+    const groupCost = (records) => {
+      const map = {};
+      records.forEach((r) => { map[r.service] = (map[r.service] || 0) + r.cost; });
+      return map;
+    };
+    const current = groupCost(filtered);
+    const previous = groupCost(prevFiltered);
+    const items = Object.keys(current)
+      .map((name) => ({
+        name,
+        cost: round2(current[name]),
+        previousCost: round2(previous[name] || 0),
+        change: round2(current[name] - (previous[name] || 0)),
+      }))
+      .sort((a, b) => b.cost - a.cost);
+    return ok({ items }, config);
+  }
+
   // Anything else isn't specifically mocked yet — respond empty rather than
   // failing the request, so pages we haven't seeded degrade gracefully
   // instead of throwing network errors.
