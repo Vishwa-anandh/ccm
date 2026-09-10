@@ -1,22 +1,16 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Plus, Inbox, ArrowLeft } from "lucide-react";
-import {
-  getCustomers,
-  getInvoices,
-  updateInvoiceLines,
-  approveInvoice,
-  publishInvoice,
-} from "../../api/billingApi";
+import { getCustomers, getInvoices, updateInvoiceLines } from "../../api/billingApi";
 import { formatCurrency } from "../../utils/formatters";
 import CustomerInvoiceDetail, { StatusPill } from "../../components/billing/CustomerInvoiceDetail";
 import { fireToast } from "../../components/ToastProvider";
 
 /**
- * Invoices — Finance's full list across every customer (doc §5, steps
- * 4–7): generate a draft, edit/recalculate lines, approve, publish. Once
- * Published/"Sent" it becomes visible on the matching customer's own
- * Billing view (CustomerBillingView.jsx) with a Pay Now action.
+ * Invoices — Finance's full list across every customer. Creating an
+ * invoice (GenerateInvoicePage) shows it here immediately — no Draft/
+ * Approved holding state or Approve/Publish step. It's already visible on
+ * the matching customer's own Billing view with a Pay Now action.
  */
 const InvoicesTab = () => {
   const navigate = useNavigate();
@@ -27,20 +21,30 @@ const InvoicesTab = () => {
   const [selectedId, setSelectedId] = useState(location.state?.selectedInvoiceId ?? null);
   const [busy, setBusy] = useState(false);
 
+  const sortedInvoices = useMemo(
+    () => invoices.slice().sort((a, b) => (a.invoiceDate < b.invoiceDate ? 1 : -1)),
+    [invoices],
+  );
+
   const load = async (keepSelected = true) => {
     setLoading(true);
     try {
       const [c, inv] = await Promise.all([getCustomers(), getInvoices()]);
       setCustomers(c);
       setInvoices(inv);
-      if (!keepSelected) setSelectedId(inv[0]?.id ?? null);
+      if (!keepSelected) {
+        const sorted = inv.slice().sort((a, b) => (a.invoiceDate < b.invoiceDate ? 1 : -1));
+        setSelectedId(sorted[0]?.id ?? null);
+      }
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    load();
+    // Default to the most recent invoice being selected, unless we were
+    // handed a specific one to land on (e.g. just created it).
+    load(Boolean(location.state?.selectedInvoiceId));
     // Consume the "just generated" selection once — a later remount of this
     // tab (e.g. switching away and back) shouldn't keep re-selecting it.
     if (location.state?.selectedInvoiceId) {
@@ -57,35 +61,9 @@ const InvoicesTab = () => {
     try {
       const updated = await updateInvoiceLines(selected.id, { lines, taxPct });
       setInvoices((prev) => prev.map((i) => (i.id === updated.id ? updated : i)));
-      fireToast("Draft saved", "success");
+      fireToast("Changes saved", "success");
     } catch (err) {
       fireToast(err.response?.data?.error || "Couldn't save changes.", "error");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const handleApprove = async () => {
-    setBusy(true);
-    try {
-      const updated = await approveInvoice(selected.id);
-      setInvoices((prev) => prev.map((i) => (i.id === updated.id ? updated : i)));
-      fireToast("Invoice approved", "success");
-    } catch (err) {
-      fireToast(err.response?.data?.error || "Couldn't approve invoice.", "error");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const handlePublish = async () => {
-    setBusy(true);
-    try {
-      const updated = await publishInvoice(selected.id);
-      setInvoices((prev) => prev.map((i) => (i.id === updated.id ? updated : i)));
-      fireToast("Invoice published — now visible to the customer", "success");
-    } catch (err) {
-      fireToast(err.response?.data?.error || "Couldn't publish invoice.", "error");
     } finally {
       setBusy(false);
     }
@@ -99,7 +77,7 @@ const InvoicesTab = () => {
           list to reach it — at lg+ both panes show side by side as before. */}
       <div className={`lg:col-span-2 space-y-3 ${selected ? "hidden lg:block" : ""}`}>
         <button onClick={() => navigate("/billing/generate")} className="btn-primary w-full justify-center">
-          <Plus className="w-4 h-4" /> Generate Invoice
+          <Plus className="w-4 h-4" /> Create Invoice
         </button>
 
         {loading && (
@@ -115,41 +93,38 @@ const InvoicesTab = () => {
               <Inbox className="w-8 h-8" />
             </div>
             <p className="text-sm font-bold text-gray-900 dark:text-white">No invoices yet</p>
-            <p className="text-xs text-gray-400 mt-1">Click Generate Invoice to get started.</p>
+            <p className="text-xs text-gray-400 mt-1">Click Create Invoice to get started.</p>
           </div>
         )}
 
         <div className="space-y-2 max-h-[70vh] overflow-y-auto pr-1">
-          {invoices
-            .slice()
-            .sort((a, b) => (a.invoiceDate < b.invoiceDate ? 1 : -1))
-            .map((inv) => (
-              <button
-                key={inv.id}
-                onClick={() => setSelectedId(inv.id)}
-                className={`w-full text-left p-4 rounded-2xl border transition-all ${
-                  selectedId === inv.id
-                    ? "border-brand-400 bg-brand-50/50 dark:bg-brand-950/20"
-                    : "border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 hover:border-gray-200 dark:hover:border-gray-700"
-                }`}
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-xs font-bold text-gray-900 dark:text-white font-mono truncate">
-                    #{inv.invoiceNumber}
-                  </span>
-                  <StatusPill status={inv.status} />
-                </div>
-                <p className="text-xs text-gray-500 mt-1 truncate">{customerFor(inv.customerId)?.name}</p>
-                <div className="flex items-center justify-between mt-2">
-                  <span className="text-[10px] text-gray-400">
-                    {inv.billingPeriodStart} – {inv.billingPeriodEnd}
-                  </span>
-                  <span className="text-sm font-bold text-gray-900 dark:text-white tabular-nums">
-                    {formatCurrency(inv.totalDue, inv.currency)}
-                  </span>
-                </div>
-              </button>
-            ))}
+          {sortedInvoices.map((inv) => (
+            <button
+              key={inv.id}
+              onClick={() => setSelectedId(inv.id)}
+              className={`w-full text-left p-4 rounded-2xl border transition-all ${
+                selectedId === inv.id
+                  ? "border-brand-400 bg-brand-50/50 dark:bg-brand-950/20"
+                  : "border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 hover:border-gray-200 dark:hover:border-gray-700"
+              }`}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-bold text-gray-900 dark:text-white font-mono truncate">
+                  #{inv.invoiceNumber}
+                </span>
+                <StatusPill status={inv.status} />
+              </div>
+              <p className="text-xs text-gray-500 mt-1 truncate">{customerFor(inv.customerId)?.name}</p>
+              <div className="flex items-center justify-between mt-2">
+                <span className="text-[10px] text-gray-400">
+                  {inv.billingPeriodStart} – {inv.billingPeriodEnd}
+                </span>
+                <span className="text-sm font-bold text-gray-900 dark:text-white tabular-nums">
+                  {formatCurrency(inv.totalDue, inv.currency)}
+                </span>
+              </div>
+            </button>
+          ))}
         </div>
       </div>
 
@@ -169,8 +144,6 @@ const InvoicesTab = () => {
               editable
               busy={busy}
               onSaveLines={handleSaveLines}
-              onApprove={handleApprove}
-              onPublish={handlePublish}
             />
           </div>
         ) : (

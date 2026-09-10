@@ -12,8 +12,9 @@ const TABS = [
 
 /**
  * BillingPage — /billing. One route, two views (doc: "one application, two
- * permission levels"): Finance/Admin gets the full console (generate,
- * price, approve, publish); everyone else gets their own read-only invoice
+ * permission levels"): Finance/Admin gets the full console (create +
+ * price invoices — no Draft/Approve step, a created invoice is
+ * immediately final); everyone else gets their own read-only invoice
  * history with Pay Now. No PermissionRoute/AccessDenied needed — a
  * customer isn't denied anything here, they just see their own bills.
  *

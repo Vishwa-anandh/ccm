@@ -13,15 +13,16 @@ const todayIso = () => new Date().toISOString().slice(0, 10);
 const plusDaysIso = (days) => new Date(Date.now() + days * 86400000).toISOString().slice(0, 10);
 
 /**
- * GenerateInvoicePage — /billing/generate. Finance builds a Customer
- * Invoice by hand: pick a customer, then use the same dynamic
- * rows/columns/custom-fields editors as the standalone Invoice Builder,
- * with a live document preview and a choice of visual template. A full
- * page (not a modal) so the preview has real room, matching the standalone
- * /invoice-builder layout. Replaces the old BuildInvoiceModal entirely —
- * there's no vendor data behind a manually built invoice, so each line
- * starts with 0% discount/adjustment; Finance can still edit those inline
- * on the resulting Draft, exactly like an auto-pulled invoice.
+ * GenerateInvoicePage — /billing/generate ("Create Invoice"). Finance
+ * builds a Customer Invoice by hand: pick a customer, then use the same
+ * dynamic rows/columns/custom-fields editors as the standalone Invoice
+ * Builder, with a live document preview and a choice of visual template. A
+ * full page (not a modal) so the preview has real room, matching the
+ * standalone /invoice-builder layout. There's no vendor data behind a
+ * manually built invoice, so each line starts with 0% discount/adjustment;
+ * Finance can still edit those inline afterward, exactly like an
+ * auto-pulled invoice. Created invoices are immediately final and visible
+ * — no Draft/Approved step.
  */
 const GenerateInvoicePage = () => {
   const navigate = useNavigate();
@@ -81,7 +82,7 @@ const GenerateInvoicePage = () => {
         taxPct,
         template,
       });
-      fireToast(`Draft ${invoice.invoiceNumber} created`, "success");
+      fireToast(`Invoice ${invoice.invoiceNumber} created`, "success");
       navigate("/billing", { state: { selectedInvoiceId: invoice.id } });
     } catch (err) {
       setError(err.response?.data?.error || "Couldn't create the invoice.");
@@ -104,7 +105,7 @@ const GenerateInvoicePage = () => {
             <span className="p-2 bg-brand-50 dark:bg-brand-900/20 rounded-xl">
               <FileStack className="w-5 h-5 text-brand-600" />
             </span>
-            Generate Customer Invoice
+            Create Invoice
           </h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 ml-11">
             Add line items, columns, and custom fields by hand — the preview updates live.
@@ -116,7 +117,7 @@ const GenerateInvoicePage = () => {
           className="btn-primary disabled:opacity-50"
         >
           {busy && <RefreshCw className="w-4 h-4 animate-spin" />}
-          Generate Draft
+          Create Invoice
         </button>
       </div>
 
@@ -180,7 +181,7 @@ const GenerateInvoicePage = () => {
                 </div>
               )}
               <p className="text-[10px] text-gray-400 mt-1.5">
-                Reference only — manually entered lines below start at 0% discount/adjustment; edit them on the Draft afterward if you want these rates applied.
+                Reference only — manually entered lines below start at 0% discount/adjustment; edit them afterward if you want these rates applied.
               </p>
             </div>
           )}
@@ -261,7 +262,7 @@ const GenerateInvoicePage = () => {
           <div className="shadow-lg mx-auto" style={{ maxWidth: 640 }}>
             <InvoicePreview
               ref={previewRef}
-              invoiceNumber="DRAFT"
+              invoiceNumber="PREVIEW"
               invoiceDate={invoiceDate}
               dueDate={dueDate}
               billTo={{

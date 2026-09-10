@@ -7,10 +7,10 @@ import { formatCurrency } from "../../utils/formatters";
 import CustomerInvoiceDetail, { StatusPill } from "../../components/billing/CustomerInvoiceDetail";
 import { fireToast } from "../../components/ToastProvider";
 
-// Only these ever reach the customer — Draft/Approved stay Finance-side
-// until Finance publishes (doc §9: "Nothing publishes without approval...
-// only Published status and later becomes visible on the customer's CCM
-// account").
+// Every invoice is created already-Sent (no Draft/Approved holding state),
+// so in practice this just excludes nothing new — it's kept as an explicit
+// allowlist in case a future status is ever added that shouldn't reach the
+// customer.
 const VISIBLE_STATUSES = ["Sent", "Paid", "Overdue"];
 
 /**

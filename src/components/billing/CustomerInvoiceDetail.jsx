@@ -21,7 +21,8 @@ import { calcLine } from "../../utils/pricingCalc";
  * module. Shared by both sides of the app (per the requirement doc's "one
  * application, two permission levels"):
  *   - Finance (editable=true): per-line discount/adjustment % can be
- *     edited with live recalculation, plus Approve/Publish actions.
+ *     edited with live recalculation. No Draft/Approved gate — an invoice
+ *     is shown here exactly as it already looks to the customer.
  *   - Customer (editable=false): read-only, with a Pay Now action.
  *
  * Visually mirrors InvoiceDetail in src/pages/InvoicesPage.jsx (header Card
@@ -74,8 +75,6 @@ const KpiTile = ({ label, value, sub, accent = "gray", large = false }) => {
 };
 
 export const STATUS_STYLES = {
-  Draft: "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-700",
-  Approved: "bg-brand-50 dark:bg-brand-950/30 text-brand-700 dark:text-brand-300 border-brand-200 dark:border-brand-800",
   Sent: "bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800",
   Paid: "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800",
   Overdue: "bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800",
@@ -84,9 +83,9 @@ export const STATUS_STYLES = {
 // Built on the shared `.badge` base (index.css) — same shape/sizing every
 // other badge in the app uses — with Billing's own bg/border color per
 // status layered on top, since `.badge-*` only covers text color and this
-// needs five distinct filled states.
+// needs three distinct filled states.
 export const StatusPill = ({ status }) => (
-  <span className={`badge border ${STATUS_STYLES[status] ?? STATUS_STYLES.Draft}`}>
+  <span className={`badge border ${STATUS_STYLES[status] ?? STATUS_STYLES.Sent}`}>
     {status}
   </span>
 );
@@ -104,8 +103,6 @@ const CustomerInvoiceDetail = ({
   customer,
   editable = false,
   onSaveLines,
-  onApprove,
-  onPublish,
   onPayNow,
   busy = false,
 }) => {
@@ -140,8 +137,6 @@ const CustomerInvoiceDetail = ({
     );
   };
 
-  const canApprove = invoice.status === "Draft";
-  const canPublish = invoice.status === "Approved";
   const canPay = invoice.status === "Sent" || invoice.status === "Overdue";
 
   return (
@@ -275,18 +270,11 @@ const CustomerInvoiceDetail = ({
           </table>
         </div>
 
-        {(invoice.approvedBy || invoice.paymentReference) && (
+        {invoice.paymentReference && (
           <div className="px-5 py-3 border-t border-gray-100 dark:border-gray-800 flex flex-wrap gap-x-6 gap-y-1 text-[11px] text-gray-400">
-            {invoice.approvedBy && (
-              <span>
-                Approved by <span className="font-semibold text-gray-600 dark:text-gray-300">{invoice.approvedBy}</span> on {fmtDate(invoice.approvedDate)}
-              </span>
-            )}
-            {invoice.paymentReference && (
-              <span className="flex items-center gap-1">
-                <Tag className="w-3 h-3" /> {invoice.paymentReference} ({invoice.paymentMethod})
-              </span>
-            )}
+            <span className="flex items-center gap-1">
+              <Tag className="w-3 h-3" /> {invoice.paymentReference} ({invoice.paymentMethod})
+            </span>
           </div>
         )}
       </Card>
@@ -300,27 +288,6 @@ const CustomerInvoiceDetail = ({
               className="px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 text-xs font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all disabled:opacity-50"
             >
               Save Changes
-            </button>
-          )}
-          {editable && canApprove && (
-            <button
-              onClick={() => onApprove?.()}
-              disabled={busy || dirty}
-              title={dirty ? "Save your changes first" : ""}
-              className="btn-primary px-4 py-2 text-xs disabled:opacity-50"
-            >
-              {busy ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />}
-              Approve
-            </button>
-          )}
-          {editable && canPublish && (
-            <button
-              onClick={() => onPublish?.()}
-              disabled={busy}
-              className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all disabled:opacity-50 flex items-center gap-1.5"
-            >
-              {busy ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
-              Publish to Customer
             </button>
           )}
           {!editable && canPay && (
@@ -344,8 +311,6 @@ CustomerInvoiceDetail.propTypes = {
   customer: PropTypes.object,
   editable: PropTypes.bool,
   onSaveLines: PropTypes.func,
-  onApprove: PropTypes.func,
-  onPublish: PropTypes.func,
   onPayNow: PropTypes.func,
   busy: PropTypes.bool,
 };

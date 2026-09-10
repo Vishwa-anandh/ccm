@@ -72,16 +72,6 @@ export const updateInvoiceLines = async (id, { lines, taxPct }) => {
     return data;
 };
 
-export const approveInvoice = async (id) => {
-    const { data } = await api.post(`/billing/invoices/${id}/approve`);
-    return data;
-};
-
-export const publishInvoice = async (id) => {
-    const { data } = await api.post(`/billing/invoices/${id}/publish`);
-    return data;
-};
-
 export const payInvoice = async (id) => {
     const { data } = await api.post(`/billing/invoices/${id}/pay`);
     return data;

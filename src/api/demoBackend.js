@@ -266,17 +266,15 @@ const INVOICES = ["07", "08", "09"].flatMap((mm) => {
  * Per the "Maitsys CCM Invoicing Requirement Document": Finance turns a
  * customer's already-ingested vendor invoices (above) into an editable,
  * Maitsys-branded Customer Invoice with a per-line discount + Maitsys
- * adjustment + tax, then approves and publishes it into that same
- * customer's CCM account. All of it is in-memory here (resets on reload),
- * mirroring how the rest of this file mocks a real backend.
+ * adjustment + tax, and it's immediately live in that same customer's CCM
+ * account — no Draft/Approved holding state. All of it is in-memory here
+ * (resets on reload), mirroring how the rest of this file mocks a real
+ * backend.
  *
- * Status model: the source doc's enum is
- * Draft / Approved / Published / Sent / Paid / Overdue. Only
- * Published-and-later is ever visible to the customer, and the customer
- * only ever sees Sent / Paid / Overdue (doc §5, step 9) — so here
- * "publish" transitions a Draft-approved invoice straight to "Sent"
- * (Published is the action, Sent is the resulting visible status) rather
- * than modeling Published as its own resting state.
+ * Status model: Sent / Paid / Overdue. Every invoice starts "Sent" the
+ * moment it's created (customer-visible immediately) and only moves from
+ * there via payment (Paid) or aging past its due date (Overdue, applied to
+ * seed data only — nothing here runs a due-date sweep).
  */
 
 let nextCustomerInvoiceSeq = 12; // seeded ones below use 0007–0011
@@ -412,7 +410,7 @@ const cust1SepLines = [
 const cust1SepTotals = buildInvoiceTotals(cust1SepLines, 8);
 
 // Demonstrates the manual-build columns/custom-fields feature in seed data,
-// so the first Draft a viewer opens already shows what "Build Invoice" adds.
+// so the first invoice a viewer opens already shows what "Create Invoice" adds.
 const COL_NOTES = "col-notes-demo";
 const cust2Lines = [
   { lineNumber: 1, description: "Azure App Service — Compute", subscriptionId: "sub-acton-001", extra: { [COL_NOTES]: "Monthly hosting" }, ...calcLine({ quantity: 1, vendorUnitPrice: 640, discountPct: 0, adjustmentPct: 6, order: PRICING_RULES[3].calculationOrder }) },
@@ -424,6 +422,9 @@ const cust3Lines = [
 ];
 const cust3Totals = buildInvoiceTotals(cust3Lines, 10);
 
+// No Draft/Approved status exists anymore — every invoice is created
+// already-final (see /billing/invoices/build below), so every seeded one
+// here is Sent/Paid/Overdue from the start too.
 const CUSTOMER_INVOICES = [
   {
     id: "cinv-1", invoiceNumber: "INV-2026-0007", customerId: "cust-1", currency: "USD",
@@ -433,7 +434,6 @@ const CUSTOMER_INVOICES = [
     status: "Paid",
     customFields: [], columns: [],
     lines: cust1JulLines, ...cust1JulTotals,
-    approvedBy: "Demo Admin", approvedDate: "2026-07-28",
     publishedDate: "2026-08-01",
     paidDate: "2026-08-10", paymentReference: "PAY-DEMO-000123", paymentMethod: "card",
   },
@@ -445,7 +445,6 @@ const CUSTOMER_INVOICES = [
     status: "Overdue",
     customFields: [], columns: [],
     lines: cust1AugLines, ...cust1AugTotals,
-    approvedBy: "Demo Admin", approvedDate: "2026-08-14",
     publishedDate: "2026-08-16",
     paidDate: null, paymentReference: null, paymentMethod: null,
   },
@@ -454,23 +453,21 @@ const CUSTOMER_INVOICES = [
     invoiceDate: "2026-09-05", dueDate: "2026-09-20",
     billingPeriodStart: "2026-09-01", billingPeriodEnd: "2026-09-30",
     sourceVendorInvoiceIds: ["inv-azure-09", "inv-aws-09", "inv-btp-09"],
-    status: "Approved",
+    status: "Sent",
     customFields: [], columns: [],
     lines: cust1SepLines, ...cust1SepTotals,
-    approvedBy: "Demo Admin", approvedDate: "2026-09-06",
-    publishedDate: null, paidDate: null, paymentReference: null, paymentMethod: null,
+    publishedDate: "2026-09-06", paidDate: null, paymentReference: null, paymentMethod: null,
   },
   {
     id: "cinv-4", invoiceNumber: "INV-2026-0010", customerId: "cust-2", currency: "USD",
     invoiceDate: "2026-09-07", dueDate: "2026-09-22",
     billingPeriodStart: "2026-09-01", billingPeriodEnd: "2026-09-30",
     sourceVendorInvoiceIds: [],
-    status: "Draft",
+    status: "Sent",
     customFields: [{ id: "cf-demo-1", label: "PO Number", value: "PO-77410" }],
     columns: [{ id: COL_NOTES, label: "Notes" }],
     lines: cust2Lines, ...cust2Totals,
-    approvedBy: null, approvedDate: null,
-    publishedDate: null, paidDate: null, paymentReference: null, paymentMethod: null,
+    publishedDate: "2026-09-07", paidDate: null, paymentReference: null, paymentMethod: null,
   },
   {
     id: "cinv-5", invoiceNumber: "INV-2026-0011", customerId: "cust-3", currency: "USD",
@@ -480,7 +477,6 @@ const CUSTOMER_INVOICES = [
     status: "Sent",
     customFields: [], columns: [],
     lines: cust3Lines, ...cust3Totals,
-    approvedBy: "Demo Admin", approvedDate: "2026-08-30",
     publishedDate: "2026-09-01", paidDate: null, paymentReference: null, paymentMethod: null,
   },
 ];
@@ -673,7 +669,7 @@ export async function demoAdapter(config) {
 
     // Manually-built lines start with no discount/adjustment — there's no
     // vendor invoice to discount against here. Finance can still edit
-    // these inline afterward on the Draft, same as an auto-pulled invoice.
+    // these inline afterward, same as an auto-pulled invoice.
     const lines = rows.map((r, i) => ({
       lineNumber: i + 1,
       description: r.description,
@@ -700,15 +696,17 @@ export async function demoAdapter(config) {
       billingPeriodStart: billingPeriodStart || null,
       billingPeriodEnd: billingPeriodEnd || null,
       sourceVendorInvoiceIds: [], // manually built — not linked to any ingested vendor invoice
-      status: "Draft",
+      // No Draft/Approved gate — a created invoice is immediately final and
+      // visible (both here in the Finance console and on the matching
+      // customer's own Billing view), matching cust1JulLines/etc.'s
+      // "Sent" seed pattern below.
+      status: "Sent",
       customFields: customFields ?? [],
       columns: columns ?? [],
       template: template === "modern" ? "modern" : "classic",
       lines,
       ...totals,
-      approvedBy: null,
-      approvedDate: null,
-      publishedDate: null,
+      publishedDate: today,
       paidDate: null,
       paymentReference: null,
       paymentMethod: null,
@@ -726,8 +724,8 @@ export async function demoAdapter(config) {
     if (id && method === "patch") {
       const invoice = CUSTOMER_INVOICES.find((i) => i.id === id);
       if (!invoice) return fail("Invoice not found", config, 404);
-      if (invoice.status !== "Draft") {
-        return fail("Only a Draft invoice can be edited.", config, 409);
+      if (invoice.status === "Paid") {
+        return fail("A paid invoice can no longer be edited.", config, 409);
       }
       const { lines, taxPct } = body(config);
       const recalculated = (lines ?? invoice.lines).map((l) => ({
@@ -743,33 +741,6 @@ export async function demoAdapter(config) {
         lines: recalculated,
         ...buildInvoiceTotals(recalculated, taxPct ?? invoice.tax),
       });
-      return ok(invoice, config);
-    }
-  }
-  {
-    const id = matchParam("/billing/invoices/:id/approve", path);
-    if (id && method === "post") {
-      const invoice = CUSTOMER_INVOICES.find((i) => i.id === id);
-      if (!invoice) return fail("Invoice not found", config, 404);
-      if (invoice.status !== "Draft") {
-        return fail("Only a Draft invoice can be approved.", config, 409);
-      }
-      invoice.status = "Approved";
-      invoice.approvedBy = DEMO_USER.fullName;
-      invoice.approvedDate = new Date().toISOString().slice(0, 10);
-      return ok(invoice, config);
-    }
-  }
-  {
-    const id = matchParam("/billing/invoices/:id/publish", path);
-    if (id && method === "post") {
-      const invoice = CUSTOMER_INVOICES.find((i) => i.id === id);
-      if (!invoice) return fail("Invoice not found", config, 404);
-      if (invoice.status !== "Approved") {
-        return fail("Only an Approved invoice can be published.", config, 409);
-      }
-      invoice.status = "Sent";
-      invoice.publishedDate = new Date().toISOString().slice(0, 10);
       return ok(invoice, config);
     }
   }
