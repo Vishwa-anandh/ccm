@@ -14,8 +14,55 @@
  */
 
 import { calcLine, round2 } from "../utils/pricingCalc";
+import { formatCurrency } from "../utils/formatters";
 
 export const DEMO_MODE = true;
+
+/* ── Local persistence for a few Billing collections ──────────
+ * Everything in this file resets on reload by design (see the module
+ * doc-comment above) — except the handful of collections the public,
+ * token-based invoice link (/invoice/:token, emailed at creation) needs
+ * to still resolve after a reload: that link is specifically meant to be
+ * opened in a fresh tab/window (a real customer clicking it from their
+ * inbox), which re-loads this whole module from scratch. Without
+ * persisting these, the link would only ever work back in the exact
+ * browser tab that created the invoice, which defeats the point of an
+ * emailed link. localStorage keeps this scoped to "survives a reload in
+ * this browser" — still not a real shared backend, but enough for the
+ * feature to actually demo.
+ */
+const STORAGE_PREFIX = "ccm_demo_billing_";
+
+function loadPersisted(key, seed) {
+  try {
+    const raw = localStorage.getItem(STORAGE_PREFIX + key);
+    return raw ? JSON.parse(raw) : seed;
+  } catch {
+    return seed;
+  }
+}
+
+function persist(key, value) {
+  try {
+    localStorage.setItem(STORAGE_PREFIX + key, JSON.stringify(value));
+  } catch {
+    // Storage full/unavailable (private browsing, etc.) — this session
+    // just falls back to in-memory-only behavior, same as before.
+  }
+}
+
+// A persisted collection's id counter must pick up where any earlier
+// session left off, or a fresh reload's counter (reset to its hardcoded
+// starting value) would mint an id that collides with one already in the
+// loaded, persisted data.
+function nextNumericId(items, prefix, fallback) {
+  const nums = items
+    .map((it) => it.id)
+    .filter((id) => typeof id === "string" && id.startsWith(prefix))
+    .map((id) => Number(id.slice(prefix.length)))
+    .filter((n) => Number.isFinite(n));
+  return nums.length ? Math.max(...nums) + 1 : fallback;
+}
 
 /* ── Demo user ─────────────────────────────────────────────── */
 
@@ -286,8 +333,12 @@ let nextRuleId = 6;
 let nextPaymentTermId = 4;
 let nextCustomerInvoiceId = 6;
 let nextPaymentId = 2;
+let nextEmailId = 1;
 
-const CUSTOMERS = [
+// Persisted (see the note above DEMO_MODE) — a public invoice link for a
+// custom (non-seeded) customer needs that customer's name/address to
+// still resolve after a reload.
+const CUSTOMERS = loadPersisted("customers", [
   {
     id: "cust-1",
     orgId: "org-demo-1", // matches DEMO_USER.currentOrgId — this is "you" when previewing the customer side
@@ -315,7 +366,8 @@ const CUSTOMERS = [
     primaryContactEmail: "ap@meridianhealth.example",
     active: true,
   },
-];
+]);
+nextCustomerId = nextNumericId(CUSTOMERS, "cust-", nextCustomerId);
 
 // Pricing Rules are now just named, reusable percentages — not tied to
 // any one customer or vendor. Finance picks one (or types a custom %)
@@ -457,8 +509,16 @@ const cust3Totals = buildInvoiceTotals(cust3Lines, 10, 3); // demonstrates a non
 // billingPeriodStart/billingPeriodEnd predates Payment Terms and has been
 // dropped; these seed invoices predate the feature too, so their
 // paymentTermName is null (no term was recorded when they were made) —
-// their dueDate values are historical fact, left as-is.
-const CUSTOMER_INVOICES = [
+// their dueDate values are historical fact, left as-is. publicToken is
+// still given to each (fixed, readable literals here rather than
+// crypto.randomUUID()) so the public /invoice/:token page and "View Sent
+// Email" are both immediately explorable against seed data, not just a
+// freshly created invoice — no SENT_EMAILS entry exists for these,
+// though, since no email was actually "sent" before the feature existed.
+// Persisted (see the note above DEMO_MODE) — this is the collection the
+// public /invoice/:token link exists to show, so it's the main reason
+// this persistence layer exists at all.
+const CUSTOMER_INVOICES = loadPersisted("invoices", [
   {
     id: "cinv-1", invoiceNumber: "INV-2026-0007", customerId: "cust-1", currency: "USD",
     invoiceDate: "2026-08-01", dueDate: "2026-08-15", paymentTermName: null,
@@ -468,6 +528,7 @@ const CUSTOMER_INVOICES = [
     lines: cust1JulLines, ...cust1JulTotals,
     publishedDate: "2026-08-01",
     paidDate: "2026-08-10", paymentReference: "PAY-DEMO-000123", paymentMethod: "card",
+    publicToken: "tok-demo-cinv-1",
   },
   {
     id: "cinv-2", invoiceNumber: "INV-2026-0008", customerId: "cust-1", currency: "USD",
@@ -478,6 +539,7 @@ const CUSTOMER_INVOICES = [
     lines: cust1AugLines, ...cust1AugTotals,
     publishedDate: "2026-08-16",
     paidDate: null, paymentReference: null, paymentMethod: null,
+    publicToken: "tok-demo-cinv-2",
   },
   {
     id: "cinv-3", invoiceNumber: "INV-2026-0009", customerId: "cust-1", currency: "USD",
@@ -487,6 +549,7 @@ const CUSTOMER_INVOICES = [
     customFields: [], columns: [],
     lines: cust1SepLines, ...cust1SepTotals,
     publishedDate: "2026-09-06", paidDate: null, paymentReference: null, paymentMethod: null,
+    publicToken: "tok-demo-cinv-3",
   },
   {
     id: "cinv-4", invoiceNumber: "INV-2026-0010", customerId: "cust-2", currency: "USD",
@@ -497,6 +560,7 @@ const CUSTOMER_INVOICES = [
     columns: [{ id: COL_NOTES, label: "Notes" }],
     lines: cust2Lines, ...cust2Totals,
     publishedDate: "2026-09-07", paidDate: null, paymentReference: null, paymentMethod: null,
+    publicToken: "tok-demo-cinv-4",
   },
   {
     id: "cinv-5", invoiceNumber: "INV-2026-0011", customerId: "cust-3", currency: "USD",
@@ -506,12 +570,54 @@ const CUSTOMER_INVOICES = [
     customFields: [], columns: [],
     lines: cust3Lines, ...cust3Totals,
     publishedDate: "2026-09-01", paidDate: null, paymentReference: null, paymentMethod: null,
+    publicToken: "tok-demo-cinv-5",
   },
-];
+]);
+nextCustomerInvoiceId = nextNumericId(CUSTOMER_INVOICES, "cinv-", nextCustomerInvoiceId);
+// invoiceNumber ("INV-2026-0007") has its own independent counter/format
+// from the id ("cinv-1") — keep it consistent with persisted data too.
+nextCustomerInvoiceSeq = CUSTOMER_INVOICES.reduce((max, inv) => {
+  const n = Number(String(inv.invoiceNumber).slice(-4));
+  return Number.isFinite(n) && n >= max ? n + 1 : max;
+}, nextCustomerInvoiceSeq);
 
-const PAYMENTS = [
+// Persisted (see the note above DEMO_MODE).
+const PAYMENTS = loadPersisted("payments", [
   { id: "pay-1", invoiceId: "cinv-1", paymentDate: "2026-08-10", amountPaid: cust1JulTotals.totalDue, paymentMethod: "card", gatewayReference: "PAY-DEMO-000123", status: "Completed" },
-];
+]);
+nextPaymentId = nextNumericId(PAYMENTS, "pay-", nextPaymentId);
+
+// The "sent" notification email for each Customer Invoice — simulated
+// since there's no real mail server here. Populated when an invoice is
+// created (see /billing/invoices/build); retrievable later via
+// /billing/invoices/:id/email so Finance can re-open "View Sent Email"
+// from the invoices list, not just right after creating it. Persisted
+// (see the note above DEMO_MODE) — the "View Sent Email" link/button must
+// keep working after a reload, same as the invoice it belongs to.
+const SENT_EMAILS = loadPersisted("emails", []);
+nextEmailId = nextNumericId(SENT_EMAILS, "email-", nextEmailId);
+
+/** Marks an invoice Paid and records the Payment — shared by the
+ * logged-in customer's Pay Now (/billing/invoices/:id/pay) and the public,
+ * token-based Pay Now (/billing/public-invoices/:token/pay), so both paths
+ * apply the exact same status/paymentReference logic. */
+function markInvoicePaid(invoice) {
+  invoice.status = "Paid";
+  invoice.paidDate = new Date().toISOString().slice(0, 10);
+  invoice.paymentReference = `PAY-DEMO-${String(100000 + nextPaymentId).slice(-6)}`;
+  invoice.paymentMethod = "card";
+  PAYMENTS.push({
+    id: `pay-${nextPaymentId++}`,
+    invoiceId: invoice.id,
+    paymentDate: invoice.paidDate,
+    amountPaid: invoice.totalDue,
+    paymentMethod: "card",
+    gatewayReference: invoice.paymentReference,
+    status: "Completed",
+  });
+  persist("invoices", CUSTOMER_INVOICES);
+  persist("payments", PAYMENTS);
+}
 
 /* ── Adapter ───────────────────────────────────────────────── */
 
@@ -615,6 +721,7 @@ export async function demoAdapter(config) {
       ...b,
     };
     CUSTOMERS.push(customer);
+    persist("customers", CUSTOMERS);
     return ok(customer, config);
   }
   {
@@ -623,6 +730,7 @@ export async function demoAdapter(config) {
       const customer = CUSTOMERS.find((c) => c.id === id);
       if (!customer) return fail("Customer not found", config, 404);
       Object.assign(customer, body(config));
+      persist("customers", CUSTOMERS);
       return ok(customer, config);
     }
     if (id && method === "delete") {
@@ -632,6 +740,7 @@ export async function demoAdapter(config) {
       // Invoices keep their own stored copy of customerId/lines, they
       // just won't resolve to a live customer record afterward.
       CUSTOMERS.splice(idx, 1);
+      persist("customers", CUSTOMERS);
       return ok({}, config);
     }
   }
@@ -779,9 +888,37 @@ export async function demoAdapter(config) {
       paidDate: null,
       paymentReference: null,
       paymentMethod: null,
+      // Secret token for the public, unauthenticated /invoice/:token page —
+      // the emailed link uses this, not the invoice's own id, so guessing
+      // an invoice id never grants access to another customer's invoice.
+      publicToken: crypto.randomUUID(),
     };
     CUSTOMER_INVOICES.push(invoice);
-    return ok(invoice, config);
+    persist("invoices", CUSTOMER_INVOICES);
+
+    // Simulate the "email this invoice to the customer" step — no real
+    // mail server exists here, so the email is just recorded (and
+    // returned inline) rather than actually delivered. window.location.origin
+    // is safe to read: this whole file runs in the browser.
+    const publicUrl = `${window.location.origin}/invoice/${invoice.publicToken}`;
+    const email = {
+      id: `email-${nextEmailId++}`,
+      invoiceId: invoice.id,
+      to: customer.primaryContactEmail || "(no contact email on file)",
+      subject: `Invoice ${invoice.invoiceNumber} from Maitsys — ${formatCurrency(invoice.totalDue, invoice.currency)} due ${dueDate}`,
+      body:
+        `Hi ${customer.name},\n\n` +
+        `Your invoice ${invoice.invoiceNumber} for ${formatCurrency(invoice.totalDue, invoice.currency)} is ready.\n\n` +
+        `View the invoice and pay online:\n${publicUrl}\n\n` +
+        `Due date: ${dueDate}${invoice.paymentTermName ? ` (${invoice.paymentTermName})` : ""}\n\n` +
+        `Thanks,\nMaitsys Billing`,
+      publicUrl,
+      sentAt: today,
+    };
+    SENT_EMAILS.push(email);
+    persist("emails", SENT_EMAILS);
+
+    return ok({ invoice, email }, config);
   }
   {
     const id = matchParam("/billing/invoices/:id", path);
@@ -814,6 +951,7 @@ export async function demoAdapter(config) {
           overallAdjustmentPct ?? invoice.overallAdjustmentPct,
         ),
       });
+      persist("invoices", CUSTOMER_INVOICES);
       return ok(invoice, config);
     }
   }
@@ -825,19 +963,48 @@ export async function demoAdapter(config) {
       if (invoice.status !== "Sent" && invoice.status !== "Overdue") {
         return fail("This invoice isn't awaiting payment.", config, 409);
       }
-      invoice.status = "Paid";
-      invoice.paidDate = new Date().toISOString().slice(0, 10);
-      invoice.paymentReference = `PAY-DEMO-${String(100000 + nextPaymentId).slice(-6)}`;
-      invoice.paymentMethod = "card";
-      PAYMENTS.push({
-        id: `pay-${nextPaymentId++}`,
-        invoiceId: invoice.id,
-        paymentDate: invoice.paidDate,
-        amountPaid: invoice.totalDue,
-        paymentMethod: "card",
-        gatewayReference: invoice.paymentReference,
-        status: "Completed",
-      });
+      markInvoicePaid(invoice);
+      return ok(invoice, config);
+    }
+  }
+  {
+    const id = matchParam("/billing/invoices/:id/email", path);
+    if (id && method === "get") {
+      const email = SENT_EMAILS.find((e) => e.invoiceId === id);
+      if (!email) return fail("No email on file for this invoice", config, 404);
+      return ok(email, config);
+    }
+  }
+
+  /* ── Public, unauthenticated invoice link (the emailed link) ──
+   * Looked up by publicToken, never by invoice id — guessing/incrementing
+   * an id must never expose another customer's invoice. No login, no
+   * ProtectedLayout: this is what a customer reaches straight from their
+   * email, logged into CCM or not. */
+  {
+    const token = matchParam("/billing/public-invoices/:token", path);
+    if (token && method === "get") {
+      const invoice = CUSTOMER_INVOICES.find((i) => i.publicToken === token);
+      if (!invoice) return fail("Invoice not found", config, 404);
+      const cust = CUSTOMERS.find((c) => c.id === invoice.customerId);
+      return ok(
+        {
+          invoice,
+          customer: cust ? { name: cust.name, billingAddress: cust.billingAddress } : null,
+        },
+        config,
+      );
+    }
+  }
+  {
+    const token = matchParam("/billing/public-invoices/:token/pay", path);
+    if (token && method === "post") {
+      const invoice = CUSTOMER_INVOICES.find((i) => i.publicToken === token);
+      if (!invoice) return fail("Invoice not found", config, 404);
+      if (invoice.status !== "Sent" && invoice.status !== "Overdue") {
+        return fail("This invoice isn't awaiting payment.", config, 409);
+      }
+      markInvoicePaid(invoice);
       return ok(invoice, config);
     }
   }

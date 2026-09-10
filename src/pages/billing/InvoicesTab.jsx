@@ -1,9 +1,11 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Plus, Inbox, ArrowLeft } from "lucide-react";
-import { getCustomers, getInvoices } from "../../api/billingApi";
+import { Plus, Inbox, ArrowLeft, Mail } from "lucide-react";
+import { getCustomers, getInvoices, getInvoiceEmail } from "../../api/billingApi";
 import { formatCurrency } from "../../utils/formatters";
 import CustomerInvoiceDetail, { StatusPill } from "../../components/billing/CustomerInvoiceDetail";
+import SentEmailModal from "../../components/billing/SentEmailModal";
+import { fireToast } from "../../components/ToastProvider";
 
 /**
  * Invoices — Finance's full list across every customer, view-only.
@@ -21,6 +23,7 @@ const InvoicesTab = () => {
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState(location.state?.selectedInvoiceId ?? null);
+  const [viewingEmail, setViewingEmail] = useState(null);
 
   const sortedInvoices = useMemo(
     () => invoices.slice().sort((a, b) => (a.invoiceDate < b.invoiceDate ? 1 : -1)),
@@ -56,6 +59,14 @@ const InvoicesTab = () => {
 
   const customerFor = (id) => customers.find((c) => c.id === id);
   const selected = invoices.find((i) => i.id === selectedId);
+
+  const handleViewEmail = async () => {
+    try {
+      setViewingEmail(await getInvoiceEmail(selected.id));
+    } catch {
+      fireToast("No email on file for this invoice (created before this feature existed).", "error");
+    }
+  };
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-10 gap-4">
@@ -120,12 +131,20 @@ const InvoicesTab = () => {
       <div className={`lg:col-span-7 ${!selected ? "hidden lg:block" : ""}`}>
         {selected ? (
           <div className="space-y-3">
-            <button
-              onClick={() => setSelectedId(null)}
-              className="lg:hidden flex items-center gap-1.5 text-sm font-bold text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
-            >
-              <ArrowLeft className="w-4 h-4" /> Back to list
-            </button>
+            <div className="flex items-center justify-between gap-2">
+              <button
+                onClick={() => setSelectedId(null)}
+                className="lg:hidden flex items-center gap-1.5 text-sm font-bold text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+              >
+                <ArrowLeft className="w-4 h-4" /> Back to list
+              </button>
+              <button
+                onClick={handleViewEmail}
+                className="ml-auto flex items-center gap-1.5 text-xs font-bold text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700"
+              >
+                <Mail className="w-3.5 h-3.5" /> View Sent Email
+              </button>
+            </div>
             <CustomerInvoiceDetail
               key={selected.id}
               invoice={selected}
@@ -138,6 +157,8 @@ const InvoicesTab = () => {
           </div>
         )}
       </div>
+
+      <SentEmailModal email={viewingEmail} onClose={() => setViewingEmail(null)} />
     </div>
   );
 };

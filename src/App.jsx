@@ -35,6 +35,7 @@ import InvoiceBuilderPage from "./pages/InvoiceBuilderPage";
 import BillingPage from "./pages/billing/BillingPage";
 import GenerateInvoicePage from "./pages/billing/GenerateInvoicePage";
 import CustomersPage from "./pages/billing/CustomersPage";
+import PublicInvoicePage from "./pages/billing/PublicInvoicePage";
 import NotFoundPage from "./pages/NotFoundPage";
 import SmartAlertsDashboard from "./pages/SmartAlertsDashboard";
 import SubscriptionExpiredPage from "./pages/SubscriptionExpiredPage";
@@ -297,6 +298,11 @@ function App() {
 
                 {/* Public demo route — no auth required */}
                 <Route path="/invoice-demo" element={<InvoiceDemoPage />} />
+
+                {/* Public, token-based Customer Invoice link (emailed to
+                    the customer) — no auth required, looked up by secret
+                    publicToken rather than any session. */}
+                <Route path="/invoice/:token" element={<PublicInvoicePage />} />
 
                 {/* Admin Routes */}
                 <Route path="/admin/login" element={<AdminLogin />} />

@@ -8,6 +8,7 @@ import LineItemsEditor from "../../components/invoice-builder/LineItemsEditor";
 import InvoicePreview from "../../components/invoice-builder/InvoicePreview";
 import TemplatePicker from "../../components/invoice-builder/TemplatePicker";
 import PctRuleInput from "../../components/billing/PctRuleInput";
+import SentEmailModal from "../../components/billing/SentEmailModal";
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
 // Pure calendar-date arithmetic via Date.UTC, deliberately never touching
@@ -53,6 +54,8 @@ const GenerateInvoicePage = () => {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [showPreview, setShowPreview] = useState(true);
+  const [sentEmail, setSentEmail] = useState(null);
+  const [createdInvoiceId, setCreatedInvoiceId] = useState(null);
 
   React.useEffect(() => {
     (async () => {
@@ -81,7 +84,7 @@ const GenerateInvoicePage = () => {
     setBusy(true);
     setError("");
     try {
-      const invoice = await buildInvoice({
+      const { invoice, email } = await buildInvoice({
         customerId,
         invoiceDate,
         paymentTermId,
@@ -92,13 +95,22 @@ const GenerateInvoicePage = () => {
         overallAdjustmentPct,
         template,
       });
-      fireToast(`Invoice ${invoice.invoiceNumber} created`, "success");
-      navigate("/billing", { state: { selectedInvoiceId: invoice.id } });
+      fireToast(`Invoice ${invoice.invoiceNumber} created — emailed to ${email.to}`, "success");
+      // Stay on this page with the "sent email" preview open (real link,
+      // clickable) rather than navigating straight away; closing it is
+      // what actually takes Finance to the created invoice.
+      setCreatedInvoiceId(invoice.id);
+      setSentEmail(email);
     } catch (err) {
       setError(err.response?.data?.error || "Couldn't create the invoice.");
     } finally {
       setBusy(false);
     }
+  };
+
+  const handleCloseSentEmail = () => {
+    setSentEmail(null);
+    navigate("/billing", { state: { selectedInvoiceId: createdInvoiceId } });
   };
 
   return (
@@ -274,6 +286,8 @@ const GenerateInvoicePage = () => {
           </div>
         )}
       </div>
+
+      <SentEmailModal email={sentEmail} onClose={handleCloseSentEmail} />
     </div>
   );
 };

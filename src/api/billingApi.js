@@ -98,3 +98,22 @@ export const payInvoice = async (id) => {
     const { data } = await api.post(`/billing/invoices/${id}/pay`);
     return data;
 };
+
+// getInvoiceEmail lets Finance re-open "View Sent Email" for an invoice
+// later from the Invoices list, not just right after creating it.
+export const getInvoiceEmail = async (id) => {
+    const { data } = await api.get(`/billing/invoices/${id}/email`);
+    return data;
+};
+
+/* ── Public invoice link (the emailed link — no auth) ─────────── */
+
+export const getPublicInvoice = async (token) => {
+    const { data } = await api.get(`/billing/public-invoices/${token}`);
+    return data;
+};
+
+export const payPublicInvoice = async (token) => {
+    const { data } = await api.post(`/billing/public-invoices/${token}/pay`);
+    return data;
+};
