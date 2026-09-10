@@ -120,7 +120,7 @@ const InvoicesTab = () => {
               <p className="text-xs text-gray-500 mt-1 truncate">{customerFor(inv.customerId)?.name}</p>
               <div className="flex items-center justify-between mt-2">
                 <span className="text-[10px] text-gray-400">
-                  {inv.billingPeriodStart} – {inv.billingPeriodEnd}
+                  {inv.invoiceDate} · Due {inv.dueDate}{inv.paymentTermName ? ` (${inv.paymentTermName})` : ""}
                 </span>
                 <span className="text-sm font-bold text-gray-900 dark:text-white tabular-nums">
                   {formatCurrency(inv.totalDue, inv.currency)}

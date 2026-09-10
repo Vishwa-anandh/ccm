@@ -283,6 +283,7 @@ let nextCustomerInvoiceSeq = 12; // seeded ones below use 0007–0011
 // window enough for it to matter in practice).
 let nextCustomerId = 4;
 let nextRuleId = 6;
+let nextPaymentTermId = 4;
 let nextCustomerInvoiceId = 6;
 let nextPaymentId = 2;
 
@@ -326,6 +327,15 @@ const PRICING_RULES = [
   { id: "rule-3", name: "Loyalty Discount", percentage: 15 },
   { id: "rule-4", name: "Service Fee Adjustment", percentage: 5 },
   { id: "rule-5", name: "Standard Tax", percentage: 8 },
+];
+
+// Payment Terms — named day-count presets (Net 30/60/90). Picked at
+// invoice creation to compute Due Date = Invoice Date + days; replaces
+// the old manual Billing Period Start/End + Due Date pickers entirely.
+const PAYMENT_TERMS = [
+  { id: "term-1", name: "Net 30", days: 30 },
+  { id: "term-2", name: "Net 60", days: 60 },
+  { id: "term-3", name: "Net 90", days: 90 },
 ];
 
 // Canned per-provider service breakdown used to split a vendor invoice's lump
@@ -444,11 +454,14 @@ const cust3Totals = buildInvoiceTotals(cust3Lines, 10, 3); // demonstrates a non
 // No Draft/Approved status exists anymore — every invoice is created
 // already-final (see /billing/invoices/build below), so every seeded one
 // here is Sent/Paid/Overdue from the start too.
+// billingPeriodStart/billingPeriodEnd predates Payment Terms and has been
+// dropped; these seed invoices predate the feature too, so their
+// paymentTermName is null (no term was recorded when they were made) —
+// their dueDate values are historical fact, left as-is.
 const CUSTOMER_INVOICES = [
   {
     id: "cinv-1", invoiceNumber: "INV-2026-0007", customerId: "cust-1", currency: "USD",
-    invoiceDate: "2026-08-01", dueDate: "2026-08-15",
-    billingPeriodStart: "2026-07-01", billingPeriodEnd: "2026-07-31",
+    invoiceDate: "2026-08-01", dueDate: "2026-08-15", paymentTermName: null,
     sourceVendorInvoiceIds: ["inv-azure-07", "inv-aws-07", "inv-btp-07"],
     status: "Paid",
     customFields: [], columns: [],
@@ -458,8 +471,7 @@ const CUSTOMER_INVOICES = [
   },
   {
     id: "cinv-2", invoiceNumber: "INV-2026-0008", customerId: "cust-1", currency: "USD",
-    invoiceDate: "2026-08-15", dueDate: "2026-08-29",
-    billingPeriodStart: "2026-08-01", billingPeriodEnd: "2026-08-31",
+    invoiceDate: "2026-08-15", dueDate: "2026-08-29", paymentTermName: null,
     sourceVendorInvoiceIds: ["inv-azure-08", "inv-aws-08", "inv-btp-08"],
     status: "Overdue",
     customFields: [], columns: [],
@@ -469,8 +481,7 @@ const CUSTOMER_INVOICES = [
   },
   {
     id: "cinv-3", invoiceNumber: "INV-2026-0009", customerId: "cust-1", currency: "USD",
-    invoiceDate: "2026-09-05", dueDate: "2026-09-20",
-    billingPeriodStart: "2026-09-01", billingPeriodEnd: "2026-09-30",
+    invoiceDate: "2026-09-05", dueDate: "2026-09-20", paymentTermName: null,
     sourceVendorInvoiceIds: ["inv-azure-09", "inv-aws-09", "inv-btp-09"],
     status: "Sent",
     customFields: [], columns: [],
@@ -479,8 +490,7 @@ const CUSTOMER_INVOICES = [
   },
   {
     id: "cinv-4", invoiceNumber: "INV-2026-0010", customerId: "cust-2", currency: "USD",
-    invoiceDate: "2026-09-07", dueDate: "2026-09-22",
-    billingPeriodStart: "2026-09-01", billingPeriodEnd: "2026-09-30",
+    invoiceDate: "2026-09-07", dueDate: "2026-09-22", paymentTermName: "Net 15",
     sourceVendorInvoiceIds: [],
     status: "Sent",
     customFields: [{ id: "cf-demo-1", label: "PO Number", value: "PO-77410" }],
@@ -490,8 +500,7 @@ const CUSTOMER_INVOICES = [
   },
   {
     id: "cinv-5", invoiceNumber: "INV-2026-0011", customerId: "cust-3", currency: "USD",
-    invoiceDate: "2026-09-01", dueDate: "2026-09-30",
-    billingPeriodStart: "2026-08-01", billingPeriodEnd: "2026-08-31",
+    invoiceDate: "2026-09-01", dueDate: "2026-09-30", paymentTermName: "Net 30",
     sourceVendorInvoiceIds: [],
     status: "Sent",
     customFields: [], columns: [],
@@ -655,6 +664,37 @@ export async function demoAdapter(config) {
     }
   }
 
+  if (method === "get" && path === "/billing/payment-terms") {
+    return ok(PAYMENT_TERMS, config);
+  }
+  if (method === "post" && path === "/billing/payment-terms") {
+    const b = body(config);
+    const term = {
+      id: `term-${nextPaymentTermId++}`,
+      ...b,
+    };
+    PAYMENT_TERMS.push(term);
+    return ok(term, config);
+  }
+  {
+    const id = matchParam("/billing/payment-terms/:id", path);
+    if (id && method === "patch") {
+      const term = PAYMENT_TERMS.find((t) => t.id === id);
+      if (!term) return fail("Payment term not found", config, 404);
+      Object.assign(term, body(config));
+      return ok(term, config);
+    }
+    if (id && method === "delete") {
+      const idx = PAYMENT_TERMS.findIndex((t) => t.id === id);
+      if (idx === -1) return fail("Payment term not found", config, 404);
+      // Same policy as pricing-rule/customer delete: existing invoices
+      // keep their own stored paymentTermName snapshot — they just won't
+      // resolve to a live term record afterward.
+      PAYMENT_TERMS.splice(idx, 1);
+      return ok({}, config);
+    }
+  }
+
   if (method === "get" && path === "/billing/invoices") {
     return ok({ data: CUSTOMER_INVOICES }, config);
   }
@@ -666,9 +706,7 @@ export async function demoAdapter(config) {
     const {
       customerId,
       invoiceDate,
-      dueDate,
-      billingPeriodStart,
-      billingPeriodEnd,
+      paymentTermId,
       customFields,
       columns,
       rows,
@@ -681,6 +719,7 @@ export async function demoAdapter(config) {
     if (!Array.isArray(rows) || rows.length === 0) {
       return fail("At least one line item is required.", config, 422);
     }
+    const term = PAYMENT_TERMS.find((t) => t.id === paymentTermId);
 
     // Discount % can be picked (a Pricing Rule) or typed per line right on
     // this form (LineItemsEditor's optional Discount column). Maitsys
@@ -702,16 +741,29 @@ export async function demoAdapter(config) {
 
     const totals = buildInvoiceTotals(lines, taxPct, overallAdjustmentPct);
     const today = new Date().toISOString().slice(0, 10);
+    const resolvedInvoiceDate = invoiceDate || today;
+    // Due Date = Invoice Date + Payment Term's day count — replaces the old
+    // manual Due Date picker and Billing Period Start/End entirely. Falls
+    // back to +14 days if no term was found (e.g. an empty PAYMENT_TERMS
+    // library), same default the old manual picker used.
+    //
+    // Pure calendar-date arithmetic via Date.UTC — never touches this
+    // process's local timezone. Parsing "YYYY-MM-DDT00:00:00" as local
+    // time and adding milliseconds crosses DST boundaries and silently
+    // lands on the wrong day (caught during verification: +60 days landed
+    // a day early in a DST-observing timezone).
+    const dueDays = term?.days ?? 14;
+    const [dY, dM, dD] = resolvedInvoiceDate.split("-").map(Number);
+    const dueDate = new Date(Date.UTC(dY, dM - 1, dD + dueDays)).toISOString().slice(0, 10);
 
     const invoice = {
       id: `cinv-${nextCustomerInvoiceId++}`,
       invoiceNumber: makeInvoiceNumber(),
       customerId,
       currency: "USD",
-      invoiceDate: invoiceDate || today,
-      dueDate: dueDate || new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10),
-      billingPeriodStart: billingPeriodStart || null,
-      billingPeriodEnd: billingPeriodEnd || null,
+      invoiceDate: resolvedInvoiceDate,
+      dueDate,
+      paymentTermName: term?.name ?? null, // snapshot — survives the term being edited/deleted later
       sourceVendorInvoiceIds: [], // manually built — not linked to any ingested vendor invoice
       // No Draft/Approved gate — a created invoice is immediately final and
       // visible (both here in the Finance console and on the matching

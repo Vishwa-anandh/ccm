@@ -44,6 +44,28 @@ export const deletePricingRule = async (id) => {
     return data;
 };
 
+/* ── Payment Terms ─────────────────────────────────────────── */
+
+export const getPaymentTerms = async () => {
+    const { data } = await api.get('/billing/payment-terms');
+    return data;
+};
+
+export const createPaymentTerm = async (termData) => {
+    const { data } = await api.post('/billing/payment-terms', termData);
+    return data;
+};
+
+export const updatePaymentTerm = async (id, termData) => {
+    const { data } = await api.patch(`/billing/payment-terms/${id}`, termData);
+    return data;
+};
+
+export const deletePaymentTerm = async (id) => {
+    const { data } = await api.delete(`/billing/payment-terms/${id}`);
+    return data;
+};
+
 /* ── Customer Invoices ─────────────────────────────────────── */
 
 export const getInvoices = async () => {
@@ -57,11 +79,11 @@ export const getInvoice = async (id) => {
 };
 
 export const buildInvoice = async ({
-    customerId, invoiceDate, dueDate, billingPeriodStart, billingPeriodEnd,
+    customerId, invoiceDate, paymentTermId,
     customFields, columns, rows, taxPct, overallAdjustmentPct, template,
 }) => {
     const { data } = await api.post('/billing/invoices/build', {
-        customerId, invoiceDate, dueDate, billingPeriodStart, billingPeriodEnd,
+        customerId, invoiceDate, paymentTermId,
         customFields, columns, rows, taxPct, overallAdjustmentPct, template,
     });
     return data;

@@ -1,13 +1,15 @@
 import React, { useState } from "react";
-import { Percent, Receipt as ReceiptIcon } from "lucide-react";
+import { Percent, CalendarClock, Receipt as ReceiptIcon } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import PricingRulesTab from "./PricingRulesTab";
+import PaymentTermsTab from "./PaymentTermsTab";
 import InvoicesTab from "./InvoicesTab";
 import CustomerBillingView from "./CustomerBillingView";
 
 const TABS = [
   { id: "invoices", label: "Invoices", icon: ReceiptIcon },
   { id: "pricing-rules", label: "Pricing Rules", icon: Percent },
+  { id: "payment-terms", label: "Payment Terms", icon: CalendarClock },
 ];
 
 /**
@@ -28,7 +30,7 @@ const BillingPage = () => {
   const [activeTab, setActiveTab] = useState("invoices");
 
   if (isPrivileged) {
-    const Active = { invoices: InvoicesTab, "pricing-rules": PricingRulesTab }[activeTab];
+    const Active = { invoices: InvoicesTab, "pricing-rules": PricingRulesTab, "payment-terms": PaymentTermsTab }[activeTab];
     // Full-width, matching the app's actual dominant dashboard convention
     // (HomePage, BudgetsPage, SyncLogsPage, UserManagement, Recommendations,
     // SmartAlerts, SubscriptionManagement) — only InvoicesPage.jsx and

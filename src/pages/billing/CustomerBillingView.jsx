@@ -136,7 +136,7 @@ const CustomerBillingView = ({ headerAction }) => {
                   </div>
                   <div className="flex items-center justify-between mt-2">
                     <span className="text-[10px] text-gray-400">
-                      {inv.billingPeriodStart} – {inv.billingPeriodEnd}
+                      {inv.invoiceDate} · Due {inv.dueDate}
                     </span>
                     <span className="text-sm font-bold text-gray-900 dark:text-white tabular-nums">
                       {formatCurrency(inv.totalDue, inv.currency)}

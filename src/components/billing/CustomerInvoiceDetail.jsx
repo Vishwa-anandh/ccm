@@ -171,13 +171,10 @@ const CustomerInvoiceDetail = ({
 
         <div className="px-5 py-4 space-y-3">
           <div className="flex flex-wrap gap-2">
-            <MetaChip
-              icon={Calendar}
-              label="Period"
-              value={`${fmtDate(invoice.billingPeriodStart)} – ${fmtDate(invoice.billingPeriodEnd)}`}
-              accent="green"
-            />
             <MetaChip icon={FileText} label="Invoice Date" value={fmtDate(invoice.invoiceDate)} accent="gray" />
+            {invoice.paymentTermName && (
+              <MetaChip icon={Calendar} label="Payment Term" value={invoice.paymentTermName} accent="green" />
+            )}
             {invoice.template && (
               <MetaChip
                 icon={LayoutTemplate}

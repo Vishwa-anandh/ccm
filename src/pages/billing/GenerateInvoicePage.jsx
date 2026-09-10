@@ -1,7 +1,7 @@
 import React, { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, RefreshCw, AlertTriangle, FileStack } from "lucide-react";
-import { getCustomers, getPricingRules, buildInvoice } from "../../api/billingApi";
+import { getCustomers, getPricingRules, getPaymentTerms, buildInvoice } from "../../api/billingApi";
 import { fireToast } from "../../components/ToastProvider";
 import CustomFieldsEditor from "../../components/invoice-builder/CustomFieldsEditor";
 import LineItemsEditor from "../../components/invoice-builder/LineItemsEditor";
@@ -10,7 +10,15 @@ import TemplatePicker from "../../components/invoice-builder/TemplatePicker";
 import PctRuleInput from "../../components/billing/PctRuleInput";
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
-const plusDaysIso = (days) => new Date(Date.now() + days * 86400000).toISOString().slice(0, 10);
+// Pure calendar-date arithmetic via Date.UTC, deliberately never touching
+// the browser's local timezone — parsing "YYYY-MM-DDT00:00:00" as local
+// time and adding milliseconds crosses DST boundaries and silently lands
+// on the wrong day (caught during verification: Sep 10 + 60 days landed
+// on Nov 8 instead of Nov 9 in a DST-observing timezone).
+const addDaysIso = (dateStr, days) => {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
+};
 
 /**
  * GenerateInvoicePage — /billing/generate ("Create Invoice"). Finance
@@ -31,10 +39,9 @@ const GenerateInvoicePage = () => {
   const [customerId, setCustomerId] = useState("");
   const [loadingCustomers, setLoadingCustomers] = useState(true);
   const [pricingRules, setPricingRules] = useState([]);
+  const [paymentTerms, setPaymentTerms] = useState([]);
+  const [paymentTermId, setPaymentTermId] = useState("");
   const [invoiceDate, setInvoiceDate] = useState(todayIso);
-  const [dueDate, setDueDate] = useState(() => plusDaysIso(14));
-  const [billingPeriodStart, setBillingPeriodStart] = useState(() => todayIso().slice(0, 8) + "01");
-  const [billingPeriodEnd, setBillingPeriodEnd] = useState(todayIso);
   const [taxPct, setTaxPct] = useState(0);
   const [overallAdjustmentPct, setOverallAdjustmentPct] = useState(0);
   const [template, setTemplate] = useState("classic");
@@ -49,10 +56,12 @@ const GenerateInvoicePage = () => {
   React.useEffect(() => {
     (async () => {
       try {
-        const [c, rules] = await Promise.all([getCustomers(), getPricingRules()]);
+        const [c, rules, terms] = await Promise.all([getCustomers(), getPricingRules(), getPaymentTerms()]);
         setCustomers(c);
         setCustomerId(c[0]?.id ?? "");
         setPricingRules(rules);
+        setPaymentTerms(terms);
+        setPaymentTermId(terms[0]?.id ?? "");
       } finally {
         setLoadingCustomers(false);
       }
@@ -60,6 +69,10 @@ const GenerateInvoicePage = () => {
   }, []);
 
   const customer = customers.find((c) => c.id === customerId);
+  const selectedTerm = paymentTerms.find((t) => t.id === paymentTermId);
+  // Due Date = Invoice Date + the selected term's day count — read-only,
+  // shown so Finance can see what date it resolves to before creating.
+  const computedDueDate = addDaysIso(invoiceDate, selectedTerm?.days ?? 14);
   const canCreate = customerId && rows.some((r) => r.description.trim().length > 0);
 
   const handleCreate = async () => {
@@ -70,9 +83,7 @@ const GenerateInvoicePage = () => {
       const invoice = await buildInvoice({
         customerId,
         invoiceDate,
-        dueDate,
-        billingPeriodStart,
-        billingPeriodEnd,
+        paymentTermId,
         customFields,
         columns,
         rows,
@@ -162,33 +173,29 @@ const GenerateInvoicePage = () => {
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-gray-500 mb-1">Due Date</label>
-              <input
-                type="date"
-                value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
-                className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-gray-500 mb-1">Billing Period Start</label>
-              <input
-                type="date"
-                value={billingPeriodStart}
-                onChange={(e) => setBillingPeriodStart(e.target.value)}
-                className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-gray-500 mb-1">Billing Period End</label>
-              <input
-                type="date"
-                value={billingPeriodEnd}
-                onChange={(e) => setBillingPeriodEnd(e.target.value)}
-                className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm"
-              />
+              <label className="block text-xs font-semibold text-gray-500 mb-1">Payment Term</label>
+              {paymentTerms.length === 0 ? (
+                <p className="text-xs text-gray-400 bg-gray-50 dark:bg-gray-800 rounded-lg px-3 py-2.5">
+                  No payment terms yet — add one in the Payment Terms tab.
+                </p>
+              ) : (
+                <select
+                  value={paymentTermId}
+                  onChange={(e) => setPaymentTermId(e.target.value)}
+                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm"
+                >
+                  {paymentTerms.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name} ({t.days} days)
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
           </div>
+          <p className="text-[10px] text-gray-400 -mt-2">
+            Due Date: <span className="font-semibold text-gray-600 dark:text-gray-300">{computedDueDate}</span> — Invoice Date + the selected term's days.
+          </p>
 
           <div className="grid grid-cols-2 gap-3">
             <div className="max-w-[140px]">
@@ -236,7 +243,7 @@ const GenerateInvoicePage = () => {
               ref={previewRef}
               invoiceNumber="PREVIEW"
               invoiceDate={invoiceDate}
-              dueDate={dueDate}
+              dueDate={computedDueDate}
               billTo={{
                 name: customer?.name ?? "",
                 address: customer?.billingAddress ?? "",
