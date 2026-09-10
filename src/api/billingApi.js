@@ -58,17 +58,17 @@ export const getInvoice = async (id) => {
 
 export const buildInvoice = async ({
     customerId, invoiceDate, dueDate, billingPeriodStart, billingPeriodEnd,
-    customFields, columns, rows, taxPct, template,
+    customFields, columns, rows, taxPct, overallAdjustmentPct, template,
 }) => {
     const { data } = await api.post('/billing/invoices/build', {
         customerId, invoiceDate, dueDate, billingPeriodStart, billingPeriodEnd,
-        customFields, columns, rows, taxPct, template,
+        customFields, columns, rows, taxPct, overallAdjustmentPct, template,
     });
     return data;
 };
 
-export const updateInvoiceLines = async (id, { lines, taxPct }) => {
-    const { data } = await api.patch(`/billing/invoices/${id}`, { lines, taxPct });
+export const updateInvoiceLines = async (id, { lines, taxPct, overallAdjustmentPct }) => {
+    const { data } = await api.patch(`/billing/invoices/${id}`, { lines, taxPct, overallAdjustmentPct });
     return data;
 };
 

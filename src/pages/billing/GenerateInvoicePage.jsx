@@ -1,13 +1,13 @@
 import React, { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, RefreshCw, AlertTriangle, FileStack, Percent } from "lucide-react";
+import { ArrowLeft, RefreshCw, AlertTriangle, FileStack } from "lucide-react";
 import { getCustomers, getPricingRules, buildInvoice } from "../../api/billingApi";
-import { CALC_ORDERS } from "../../utils/pricingCalc";
 import { fireToast } from "../../components/ToastProvider";
 import CustomFieldsEditor from "../../components/invoice-builder/CustomFieldsEditor";
 import LineItemsEditor from "../../components/invoice-builder/LineItemsEditor";
 import InvoicePreview from "../../components/invoice-builder/InvoicePreview";
 import TemplatePicker from "../../components/invoice-builder/TemplatePicker";
+import PctRuleInput from "../../components/billing/PctRuleInput";
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
 const plusDaysIso = (days) => new Date(Date.now() + days * 86400000).toISOString().slice(0, 10);
@@ -36,6 +36,7 @@ const GenerateInvoicePage = () => {
   const [billingPeriodStart, setBillingPeriodStart] = useState(() => todayIso().slice(0, 8) + "01");
   const [billingPeriodEnd, setBillingPeriodEnd] = useState(todayIso);
   const [taxPct, setTaxPct] = useState(0);
+  const [overallAdjustmentPct, setOverallAdjustmentPct] = useState(0);
   const [template, setTemplate] = useState("classic");
   const [customFields, setCustomFields] = useState([]);
   const [columns, setColumns] = useState([]);
@@ -60,10 +61,6 @@ const GenerateInvoicePage = () => {
 
   const customer = customers.find((c) => c.id === customerId);
   const canCreate = customerId && rows.some((r) => r.description.trim().length > 0);
-  // Reference only — manually built lines still start with 0% discount/
-  // adjustment (there's no vendor invoice to discount against here), so
-  // these just tell Finance what this customer's configured rates are.
-  const customerRules = pricingRules.filter((r) => r.customerId === customerId);
 
   const handleCreate = async () => {
     if (!canCreate) return;
@@ -80,6 +77,7 @@ const GenerateInvoicePage = () => {
         columns,
         rows,
         taxPct,
+        overallAdjustmentPct,
         template,
       });
       fireToast(`Invoice ${invoice.invoiceNumber} created`, "success");
@@ -149,42 +147,9 @@ const GenerateInvoicePage = () => {
             )}
           </div>
 
-          {!loadingCustomers && customerId && (
-            <div>
-              <p className="text-xs font-bold text-gray-500 dark:text-gray-400 mb-2 tracking-wide">
-                {customer?.name}'s Pricing Rules
-              </p>
-              {customerRules.length === 0 ? (
-                <p className="text-xs text-gray-400 bg-gray-50 dark:bg-gray-800 rounded-xl px-3 py-2.5">
-                  No pricing rules configured for this customer yet.
-                </p>
-              ) : (
-                <div className="space-y-1.5">
-                  {customerRules.map((r) => (
-                    <div
-                      key={r.id}
-                      className="flex items-center justify-between gap-3 text-xs bg-gray-50 dark:bg-gray-800 rounded-xl px-3 py-2"
-                    >
-                      <span className="flex items-center gap-1.5 font-bold text-gray-700 dark:text-gray-300 shrink-0">
-                        <Percent className="w-3 h-3 text-brand-500" /> {r.vendor.toUpperCase()}
-                      </span>
-                      <span className="text-gray-500 dark:text-gray-400 text-right">
-                        Discount {r.vendorDiscountPct}% → Adjustment {r.maitsysAdjustmentPct}% · Tax {r.taxPct}%
-                        <span className="block text-[10px] text-gray-400">
-                          {r.calculationOrder === CALC_ORDERS.ADJUSTMENT_THEN_DISCOUNT
-                            ? "Adjustment then Discount"
-                            : "Discount then Adjustment"}
-                        </span>
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-              <p className="text-[10px] text-gray-400 mt-1.5">
-                Reference only — manually entered lines below start at 0% discount/adjustment; edit them afterward if you want these rates applied.
-              </p>
-            </div>
-          )}
+          <p className="text-[10px] text-gray-400 -mt-2">
+            Line items below start at 0% discount/adjustment — pick a Pricing Rule or set each line's % right after creating the invoice.
+          </p>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -225,16 +190,22 @@ const GenerateInvoicePage = () => {
             </div>
           </div>
 
-          <div className="max-w-[140px]">
-            <label className="block text-xs font-semibold text-gray-500 mb-1">Tax %</label>
-            <input
-              type="number"
-              min="0"
-              step="0.1"
-              value={taxPct}
-              onChange={(e) => setTaxPct(Number(e.target.value))}
-              className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm"
-            />
+          <div className="grid grid-cols-2 gap-3">
+            <div className="max-w-[140px]">
+              <label className="block text-xs font-semibold text-gray-500 mb-1">Tax %</label>
+              <input
+                type="number"
+                min="0"
+                step="0.1"
+                value={taxPct}
+                onChange={(e) => setTaxPct(Number(e.target.value))}
+                className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 mb-1">Overall Adjustment %</label>
+              <PctRuleInput value={overallAdjustmentPct} onChange={setOverallAdjustmentPct} rules={pricingRules} />
+            </div>
           </div>
 
           <div>
@@ -274,6 +245,7 @@ const GenerateInvoicePage = () => {
               columns={columns}
               rows={rows}
               taxPct={taxPct}
+              overallAdjustmentPct={overallAdjustmentPct}
               notes=""
               template={template}
             />

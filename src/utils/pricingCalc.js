@@ -88,16 +88,20 @@ export function calcLine({
 }
 
 /**
- * Recalculates every line, then rolls the invoice-level Subtotal / Tax /
- * Total Due. Tax is applied once, on the summed Final Line Amounts (i.e.
- * after every line's discount + adjustment) — see the plan's Assumptions.
+ * Recalculates every line, then rolls the invoice-level totals: line items
+ * subtotal -> Overall Adjustment % (a second, invoice-wide adjustment on
+ * top of each line's own discount/adjustment) -> subtotal -> Tax % ->
+ * Total Due. Shared between the mock backend (src/api/demoBackend.js) and
+ * CustomerInvoiceDetail's live-editing preview, so both compute totals the
+ * same way.
  *
  * @param {Array} lines — each with the fields calcLine() returns (or raw
  *   quantity/vendorUnitPrice/discountPct/adjustmentPct to be recalculated).
  * @param {number} taxPct
+ * @param {number} [overallAdjustmentPct] — defaults to 0.
  * @param {string} [order]
  */
-export function calcInvoiceTotals(lines, taxPct, order) {
+export function calcInvoiceTotals(lines, taxPct, overallAdjustmentPct = 0, order) {
   const calculatedLines = lines.map((line) =>
     line.finalLineAmount != null && line.__recalculate !== true
       ? line
@@ -114,11 +118,21 @@ export function calcInvoiceTotals(lines, taxPct, order) {
         },
   );
 
-  const subtotal = round2(
+  const lineSubtotal = round2(
     calculatedLines.reduce((s, l) => s + l.finalLineAmount, 0),
   );
+  const overallAdjustmentAmount = round2(lineSubtotal * (Number(overallAdjustmentPct ?? 0) / 100));
+  const subtotal = round2(lineSubtotal + overallAdjustmentAmount);
   const tax = round2(subtotal * (Number(taxPct ?? 0) / 100));
   const totalDue = round2(subtotal + tax);
 
-  return { lines: calculatedLines, subtotal, tax, totalDue };
+  return {
+    lines: calculatedLines,
+    lineSubtotal,
+    overallAdjustmentPct: Number(overallAdjustmentPct ?? 0),
+    overallAdjustmentAmount,
+    subtotal,
+    tax,
+    totalDue,
+  };
 }

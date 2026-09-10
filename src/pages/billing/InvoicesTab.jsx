@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Plus, Inbox, ArrowLeft } from "lucide-react";
-import { getCustomers, getInvoices, updateInvoiceLines } from "../../api/billingApi";
+import { getCustomers, getInvoices, getPricingRules, updateInvoiceLines } from "../../api/billingApi";
 import { formatCurrency } from "../../utils/formatters";
 import CustomerInvoiceDetail, { StatusPill } from "../../components/billing/CustomerInvoiceDetail";
 import { fireToast } from "../../components/ToastProvider";
@@ -17,6 +17,7 @@ const InvoicesTab = () => {
   const location = useLocation();
   const [customers, setCustomers] = useState([]);
   const [invoices, setInvoices] = useState([]);
+  const [pricingRules, setPricingRules] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState(location.state?.selectedInvoiceId ?? null);
   const [busy, setBusy] = useState(false);
@@ -29,9 +30,10 @@ const InvoicesTab = () => {
   const load = async (keepSelected = true) => {
     setLoading(true);
     try {
-      const [c, inv] = await Promise.all([getCustomers(), getInvoices()]);
+      const [c, inv, rules] = await Promise.all([getCustomers(), getInvoices(), getPricingRules()]);
       setCustomers(c);
       setInvoices(inv);
+      setPricingRules(rules);
       if (!keepSelected) {
         const sorted = inv.slice().sort((a, b) => (a.invoiceDate < b.invoiceDate ? 1 : -1));
         setSelectedId(sorted[0]?.id ?? null);
@@ -56,10 +58,10 @@ const InvoicesTab = () => {
   const customerFor = (id) => customers.find((c) => c.id === id);
   const selected = invoices.find((i) => i.id === selectedId);
 
-  const handleSaveLines = async (lines, taxPct) => {
+  const handleSaveLines = async (lines, taxPct, overallAdjustmentPct) => {
     setBusy(true);
     try {
-      const updated = await updateInvoiceLines(selected.id, { lines, taxPct });
+      const updated = await updateInvoiceLines(selected.id, { lines, taxPct, overallAdjustmentPct });
       setInvoices((prev) => prev.map((i) => (i.id === updated.id ? updated : i)));
       fireToast("Changes saved", "success");
     } catch (err) {
@@ -70,12 +72,13 @@ const InvoicesTab = () => {
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+    <div className="grid grid-cols-1 lg:grid-cols-10 gap-4">
       {/* Below lg this is a master-detail drill-down: the list and detail
           are never both visible on a narrow screen, so selecting an
           invoice doesn't leave Finance scrolling past the rest of the
-          list to reach it — at lg+ both panes show side by side as before. */}
-      <div className={`lg:col-span-2 space-y-3 ${selected ? "hidden lg:block" : ""}`}>
+          list to reach it — at lg+ both panes show side by side as before,
+          30/70 split. */}
+      <div className={`lg:col-span-3 space-y-3 ${selected ? "hidden lg:block" : ""}`}>
         <button onClick={() => navigate("/billing/generate")} className="btn-primary w-full justify-center">
           <Plus className="w-4 h-4" /> Create Invoice
         </button>
@@ -128,7 +131,7 @@ const InvoicesTab = () => {
         </div>
       </div>
 
-      <div className={`lg:col-span-3 ${!selected ? "hidden lg:block" : ""}`}>
+      <div className={`lg:col-span-7 ${!selected ? "hidden lg:block" : ""}`}>
         {selected ? (
           <div className="space-y-3">
             <button
@@ -142,6 +145,7 @@ const InvoicesTab = () => {
               invoice={selected}
               customer={customerFor(selected.customerId)}
               editable
+              pricingRules={pricingRules}
               busy={busy}
               onSaveLines={handleSaveLines}
             />

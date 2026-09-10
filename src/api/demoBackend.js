@@ -13,7 +13,7 @@
  * ../api/index.js).
  */
 
-import { calcLine, round2, CALC_ORDERS } from "../utils/pricingCalc";
+import { calcLine, round2 } from "../utils/pricingCalc";
 
 export const DEMO_MODE = true;
 
@@ -316,14 +316,16 @@ const CUSTOMERS = [
   },
 ];
 
+// Pricing Rules are now just named, reusable percentages — not tied to
+// any one customer or vendor. Finance picks one (or types a custom %)
+// wherever a percentage is needed: a line's Discount %, a line's Maitsys
+// Adjustment %, or an invoice's Overall Adjustment %.
 const PRICING_RULES = [
-  { id: "rule-1", customerId: "cust-1", vendor: "azure", serviceCategory: null, vendorDiscountPct: 7, maitsysAdjustmentPct: 5, taxPct: 8, calculationOrder: CALC_ORDERS.DISCOUNT_THEN_ADJUSTMENT, effectiveFrom: "2026-01-01", effectiveTo: null, createdBy: "Demo Admin", approvedBy: "Demo Admin" },
-  { id: "rule-2", customerId: "cust-1", vendor: "aws", serviceCategory: null, vendorDiscountPct: 3.5, maitsysAdjustmentPct: 5, taxPct: 8, calculationOrder: CALC_ORDERS.DISCOUNT_THEN_ADJUSTMENT, effectiveFrom: "2026-01-01", effectiveTo: null, createdBy: "Demo Admin", approvedBy: "Demo Admin" },
-  { id: "rule-3", customerId: "cust-1", vendor: "btp", serviceCategory: null, vendorDiscountPct: 2, maitsysAdjustmentPct: 5, taxPct: 8, calculationOrder: CALC_ORDERS.DISCOUNT_THEN_ADJUSTMENT, effectiveFrom: "2026-01-01", effectiveTo: null, createdBy: "Demo Admin", approvedBy: "Demo Admin" },
-  // Explicit zero discount — the doc calls this out as a business rule: zero is
-  // an explicit, verified value, never a blank/unset field.
-  { id: "rule-4", customerId: "cust-2", vendor: "azure", serviceCategory: null, vendorDiscountPct: 0, maitsysAdjustmentPct: 6, taxPct: 0, calculationOrder: CALC_ORDERS.DISCOUNT_THEN_ADJUSTMENT, effectiveFrom: "2026-01-01", effectiveTo: null, createdBy: "Demo Admin", approvedBy: "Demo Admin" },
-  { id: "rule-5", customerId: "cust-3", vendor: "aws", serviceCategory: null, vendorDiscountPct: 5, maitsysAdjustmentPct: 4, taxPct: 10, calculationOrder: CALC_ORDERS.DISCOUNT_THEN_ADJUSTMENT, effectiveFrom: "2026-01-01", effectiveTo: null, createdBy: "Demo Admin", approvedBy: "Demo Admin" },
+  { id: "rule-1", name: "Standard Discount", percentage: 5 },
+  { id: "rule-2", name: "Volume Discount", percentage: 10 },
+  { id: "rule-3", name: "Loyalty Discount", percentage: 15 },
+  { id: "rule-4", name: "Service Fee Adjustment", percentage: 5 },
+  { id: "rule-5", name: "Standard Tax", percentage: 8 },
 ];
 
 // Canned per-provider service breakdown used to split a vendor invoice's lump
@@ -350,8 +352,14 @@ const SERVICE_SPLIT_TEMPLATES = {
   ],
 };
 
-/** Splits one ingested vendor invoice into 2–3 priced Customer Invoice lines. */
-function linesFromVendorInvoice(vendorInvoice, rule) {
+/**
+ * Splits one ingested vendor invoice into 2–3 priced Customer Invoice
+ * lines. `rates` is a plain {discountPct, adjustmentPct} pair — no longer
+ * a customer-specific Pricing Rule, since rules aren't customer/vendor
+ * scoped anymore; these are just the historical rates this seed invoice
+ * happened to use.
+ */
+function linesFromVendorInvoice(vendorInvoice, rates = {}) {
   const templates = SERVICE_SPLIT_TEMPLATES[vendorInvoice.provider] ?? [
     { name: `${vendorInvoice.provider.toUpperCase()} Services`, share: 1 },
   ];
@@ -361,9 +369,8 @@ function linesFromVendorInvoice(vendorInvoice, rule) {
       quantity: 1,
       vendorUnitPrice: vendorLineTotal,
       vendorLineTotal,
-      discountPct: rule?.vendorDiscountPct ?? 0,
-      adjustmentPct: rule?.maitsysAdjustmentPct ?? 0,
-      order: rule?.calculationOrder,
+      discountPct: rates.discountPct ?? 0,
+      adjustmentPct: rates.adjustmentPct ?? 0,
     });
     return {
       lineNumber: i + 1,
@@ -375,10 +382,22 @@ function linesFromVendorInvoice(vendorInvoice, rule) {
   });
 }
 
-function buildInvoiceTotals(lines, taxPct) {
-  const subtotal = round2(lines.reduce((s, l) => s + l.finalLineAmount, 0));
+// lineSubtotal (sum of line Final Amounts) -> Overall Adjustment % (a
+// second, invoice-wide adjustment Finance can apply on top of every
+// line's own discount/adjustment) -> subtotal -> Tax % -> Total Due.
+function buildInvoiceTotals(lines, taxPct, overallAdjustmentPct = 0) {
+  const lineSubtotal = round2(lines.reduce((s, l) => s + l.finalLineAmount, 0));
+  const overallAdjustmentAmount = round2(lineSubtotal * (Number(overallAdjustmentPct ?? 0) / 100));
+  const subtotal = round2(lineSubtotal + overallAdjustmentAmount);
   const tax = round2(subtotal * (Number(taxPct ?? 0) / 100));
-  return { subtotal, tax, totalDue: round2(subtotal + tax) };
+  return {
+    lineSubtotal,
+    overallAdjustmentPct: Number(overallAdjustmentPct ?? 0),
+    overallAdjustmentAmount,
+    subtotal,
+    tax,
+    totalDue: round2(subtotal + tax),
+  };
 }
 
 function makeInvoiceNumber() {
@@ -389,23 +408,23 @@ function makeInvoiceNumber() {
 // ── Seeded customer invoices, covering every status the doc's enum needs ──
 
 const cust1JulLines = [
-  ...linesFromVendorInvoice(INVOICES.find((i) => i.id === "inv-azure-07"), PRICING_RULES[0]),
-  ...linesFromVendorInvoice(INVOICES.find((i) => i.id === "inv-aws-07"), PRICING_RULES[1]),
-  ...linesFromVendorInvoice(INVOICES.find((i) => i.id === "inv-btp-07"), PRICING_RULES[2]),
+  ...linesFromVendorInvoice(INVOICES.find((i) => i.id === "inv-azure-07"), { discountPct: 7, adjustmentPct: 5 }),
+  ...linesFromVendorInvoice(INVOICES.find((i) => i.id === "inv-aws-07"), { discountPct: 3.5, adjustmentPct: 5 }),
+  ...linesFromVendorInvoice(INVOICES.find((i) => i.id === "inv-btp-07"), { discountPct: 2, adjustmentPct: 5 }),
 ].map((l, i) => ({ ...l, lineNumber: i + 1 }));
 const cust1JulTotals = buildInvoiceTotals(cust1JulLines, 8);
 
 const cust1AugLines = [
-  ...linesFromVendorInvoice(INVOICES.find((i) => i.id === "inv-azure-08"), PRICING_RULES[0]),
-  ...linesFromVendorInvoice(INVOICES.find((i) => i.id === "inv-aws-08"), PRICING_RULES[1]),
-  ...linesFromVendorInvoice(INVOICES.find((i) => i.id === "inv-btp-08"), PRICING_RULES[2]),
+  ...linesFromVendorInvoice(INVOICES.find((i) => i.id === "inv-azure-08"), { discountPct: 7, adjustmentPct: 5 }),
+  ...linesFromVendorInvoice(INVOICES.find((i) => i.id === "inv-aws-08"), { discountPct: 3.5, adjustmentPct: 5 }),
+  ...linesFromVendorInvoice(INVOICES.find((i) => i.id === "inv-btp-08"), { discountPct: 2, adjustmentPct: 5 }),
 ].map((l, i) => ({ ...l, lineNumber: i + 1 }));
 const cust1AugTotals = buildInvoiceTotals(cust1AugLines, 8);
 
 const cust1SepLines = [
-  ...linesFromVendorInvoice(INVOICES.find((i) => i.id === "inv-azure-09"), PRICING_RULES[0]),
-  ...linesFromVendorInvoice(INVOICES.find((i) => i.id === "inv-aws-09"), PRICING_RULES[1]),
-  ...linesFromVendorInvoice(INVOICES.find((i) => i.id === "inv-btp-09"), PRICING_RULES[2]),
+  ...linesFromVendorInvoice(INVOICES.find((i) => i.id === "inv-azure-09"), { discountPct: 7, adjustmentPct: 5 }),
+  ...linesFromVendorInvoice(INVOICES.find((i) => i.id === "inv-aws-09"), { discountPct: 3.5, adjustmentPct: 5 }),
+  ...linesFromVendorInvoice(INVOICES.find((i) => i.id === "inv-btp-09"), { discountPct: 2, adjustmentPct: 5 }),
 ].map((l, i) => ({ ...l, lineNumber: i + 1 }));
 const cust1SepTotals = buildInvoiceTotals(cust1SepLines, 8);
 
@@ -413,14 +432,14 @@ const cust1SepTotals = buildInvoiceTotals(cust1SepLines, 8);
 // so the first invoice a viewer opens already shows what "Create Invoice" adds.
 const COL_NOTES = "col-notes-demo";
 const cust2Lines = [
-  { lineNumber: 1, description: "Azure App Service — Compute", subscriptionId: "sub-acton-001", extra: { [COL_NOTES]: "Monthly hosting" }, ...calcLine({ quantity: 1, vendorUnitPrice: 640, discountPct: 0, adjustmentPct: 6, order: PRICING_RULES[3].calculationOrder }) },
+  { lineNumber: 1, description: "Azure App Service — Compute", subscriptionId: "sub-acton-001", extra: { [COL_NOTES]: "Monthly hosting" }, ...calcLine({ quantity: 1, vendorUnitPrice: 640, discountPct: 0, adjustmentPct: 6 }) },
 ];
 const cust2Totals = buildInvoiceTotals(cust2Lines, 0);
 
 const cust3Lines = [
-  { lineNumber: 1, description: "AWS EC2 — Reserved Instances", subscriptionId: "acct-444455556677", extra: {}, ...calcLine({ quantity: 1, vendorUnitPrice: 3200, discountPct: 5, adjustmentPct: 4, order: PRICING_RULES[4].calculationOrder }) },
+  { lineNumber: 1, description: "AWS EC2 — Reserved Instances", subscriptionId: "acct-444455556677", extra: {}, ...calcLine({ quantity: 1, vendorUnitPrice: 3200, discountPct: 5, adjustmentPct: 4 }) },
 ];
-const cust3Totals = buildInvoiceTotals(cust3Lines, 10);
+const cust3Totals = buildInvoiceTotals(cust3Lines, 10, 3); // demonstrates a nonzero Overall Adjustment % in seed data
 
 // No Draft/Approved status exists anymore — every invoice is created
 // already-final (see /billing/invoices/build below), so every seeded one
@@ -615,11 +634,6 @@ export async function demoAdapter(config) {
     const b = body(config);
     const rule = {
       id: `rule-${nextRuleId++}`,
-      calculationOrder: CALC_ORDERS.DISCOUNT_THEN_ADJUSTMENT,
-      effectiveFrom: new Date().toISOString().slice(0, 10),
-      effectiveTo: null,
-      createdBy: DEMO_USER.fullName,
-      approvedBy: DEMO_USER.fullName,
       ...b,
     };
     PRICING_RULES.push(rule);
@@ -659,6 +673,7 @@ export async function demoAdapter(config) {
       columns,
       rows,
       taxPct,
+      overallAdjustmentPct,
       template,
     } = body(config);
     const customer = CUSTOMERS.find((c) => c.id === customerId);
@@ -668,8 +683,10 @@ export async function demoAdapter(config) {
     }
 
     // Manually-built lines start with no discount/adjustment — there's no
-    // vendor invoice to discount against here. Finance can still edit
-    // these inline afterward, same as an auto-pulled invoice.
+    // vendor invoice to discount against here. Finance picks a Pricing
+    // Rule or types a % for each line right on the invoice right after
+    // it's created (CustomerInvoiceDetail — shown immediately, no
+    // Draft step to wait through).
     const lines = rows.map((r, i) => ({
       lineNumber: i + 1,
       description: r.description,
@@ -683,7 +700,7 @@ export async function demoAdapter(config) {
       }),
     }));
 
-    const totals = buildInvoiceTotals(lines, taxPct);
+    const totals = buildInvoiceTotals(lines, taxPct, overallAdjustmentPct);
     const today = new Date().toISOString().slice(0, 10);
 
     const invoice = {
@@ -727,7 +744,7 @@ export async function demoAdapter(config) {
       if (invoice.status === "Paid") {
         return fail("A paid invoice can no longer be edited.", config, 409);
       }
-      const { lines, taxPct } = body(config);
+      const { lines, taxPct, overallAdjustmentPct } = body(config);
       const recalculated = (lines ?? invoice.lines).map((l) => ({
         ...l,
         ...calcLine({
@@ -739,7 +756,11 @@ export async function demoAdapter(config) {
       }));
       Object.assign(invoice, {
         lines: recalculated,
-        ...buildInvoiceTotals(recalculated, taxPct ?? invoice.tax),
+        ...buildInvoiceTotals(
+          recalculated,
+          taxPct ?? invoice.tax,
+          overallAdjustmentPct ?? invoice.overallAdjustmentPct,
+        ),
       });
       return ok(invoice, config);
     }

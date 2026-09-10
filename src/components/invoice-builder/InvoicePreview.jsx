@@ -16,9 +16,11 @@ const MAITSYS_SENDER = {
  * captures into the downloaded PDF.
  */
 const InvoicePreview = forwardRef(
-  ({ invoiceNumber, invoiceDate, dueDate, billTo, customFields, columns, rows, taxPct, notes, template = "classic" }, ref) => {
+  ({ invoiceNumber, invoiceDate, dueDate, billTo, customFields, columns, rows, taxPct, overallAdjustmentPct = 0, notes, template = "classic" }, ref) => {
     const lineAmounts = rows.map((r) => round2(Number(r.quantity || 0) * Number(r.unitPrice || 0)));
-    const subtotal = round2(lineAmounts.reduce((s, a) => s + a, 0));
+    const lineSubtotal = round2(lineAmounts.reduce((s, a) => s + a, 0));
+    const adjustmentAmount = round2(lineSubtotal * (Number(overallAdjustmentPct || 0) / 100));
+    const subtotal = round2(lineSubtotal + adjustmentAmount);
     const tax = round2(subtotal * (Number(taxPct || 0) / 100));
     const total = round2(subtotal + tax);
     const modern = template === "modern";
@@ -98,8 +100,14 @@ const InvoicePreview = forwardRef(
             <div className="w-56 space-y-1">
               <div className="flex justify-between text-sm">
                 <span className="text-gray-500">Subtotal</span>
-                <span className="font-semibold">{formatCurrency(subtotal)}</span>
+                <span className="font-semibold">{formatCurrency(lineSubtotal)}</span>
               </div>
+              {Number(overallAdjustmentPct || 0) !== 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Adjustment ({overallAdjustmentPct}%)</span>
+                  <span className="font-semibold">{formatCurrency(adjustmentAmount)}</span>
+                </div>
+              )}
               <div className="flex justify-between text-sm">
                 <span className="text-gray-500">Tax ({taxPct}%)</span>
                 <span className="font-semibold">{formatCurrency(tax)}</span>
@@ -148,6 +156,7 @@ InvoicePreview.propTypes = {
     }),
   ).isRequired,
   taxPct: PropTypes.number.isRequired,
+  overallAdjustmentPct: PropTypes.number,
   notes: PropTypes.string,
   template: PropTypes.oneOf(["classic", "modern"]),
 };

@@ -14,15 +14,18 @@ import {
   LayoutTemplate,
 } from "lucide-react";
 import { formatCurrency } from "../../utils/formatters";
-import { calcLine } from "../../utils/pricingCalc";
+import { calcLine, calcInvoiceTotals } from "../../utils/pricingCalc";
+import PctRuleInput from "./PctRuleInput";
 
 /**
  * CustomerInvoiceDetail — the "invoice document" view for the Billing
  * module. Shared by both sides of the app (per the requirement doc's "one
  * application, two permission levels"):
- *   - Finance (editable=true): per-line discount/adjustment % can be
- *     edited with live recalculation. No Draft/Approved gate — an invoice
- *     is shown here exactly as it already looks to the customer.
+ *   - Finance (editable=true): per-line Discount %/Adjustment % and the
+ *     invoice's Overall Adjustment % can each be picked from a saved
+ *     Pricing Rule or typed manually (PctRuleInput), with live
+ *     recalculation. No Draft/Approved gate — an invoice is shown here
+ *     exactly as it already looks to the customer.
  *   - Customer (editable=false): read-only, with a Pay Now action.
  *
  * Visually mirrors InvoiceDetail in src/pages/InvoicesPage.jsx (header Card
@@ -102,23 +105,28 @@ const CustomerInvoiceDetail = ({
   invoice,
   customer,
   editable = false,
+  pricingRules = [],
   onSaveLines,
   onPayNow,
   busy = false,
 }) => {
   const [draftLines, setDraftLines] = useState(invoice.lines);
+  const [overallAdjPct, setOverallAdjPct] = useState(invoice.overallAdjustmentPct ?? 0);
   const [dirty, setDirty] = useState(false);
   const cur = invoice.currency || "USD";
   const fmt = (v) => formatCurrency(v, cur);
   const customFields = invoice.customFields ?? [];
   const columns = invoice.columns ?? [];
 
-  const totals = useMemo(() => {
-    const subtotal = draftLines.reduce((s, l) => s + l.finalLineAmount, 0);
-    const taxPct = invoice.subtotal > 0 ? (invoice.tax / invoice.subtotal) * 100 : 0;
-    const tax = Math.round(subtotal * (taxPct / 100) * 100) / 100;
-    return { subtotal: Math.round(subtotal * 100) / 100, tax, totalDue: Math.round((subtotal + tax) * 100) / 100 };
-  }, [draftLines, invoice.subtotal, invoice.tax]);
+  // invoice.tax / invoice.subtotal recovers the last-saved Tax % (subtotal
+  // here is already post-Overall-Adjustment, so this ratio stays correct
+  // regardless of what the Overall Adjustment % is).
+  const taxPct = invoice.subtotal > 0 ? (invoice.tax / invoice.subtotal) * 100 : 0;
+
+  const totals = useMemo(
+    () => calcInvoiceTotals(draftLines, taxPct, overallAdjPct),
+    [draftLines, taxPct, overallAdjPct],
+  );
 
   const handleLineChange = (idx, field, value) => {
     setDirty(true);
@@ -135,6 +143,11 @@ const CustomerInvoiceDetail = ({
         return { ...next, ...calc };
       }),
     );
+  };
+
+  const handleOverallAdjChange = (value) => {
+    setDirty(true);
+    setOverallAdjPct(value);
   };
 
   const canPay = invoice.status === "Sent" || invoice.status === "Overdue";
@@ -185,10 +198,25 @@ const CustomerInvoiceDetail = ({
             ))}
           </div>
 
-          <div className="grid gap-2 mt-3 grid-cols-2 sm:grid-cols-3">
-            <KpiTile label="Subtotal" value={fmt(totals.subtotal)} accent="gray" />
+          <div className="grid gap-2 mt-3 grid-cols-2 sm:grid-cols-4">
+            <KpiTile label="Line Items Subtotal" value={fmt(totals.lineSubtotal)} accent="gray" />
+            <KpiTile
+              label="Overall Adjustment"
+              value={fmt(totals.overallAdjustmentAmount)}
+              sub={`${overallAdjPct}%`}
+              accent="gray"
+            />
             <KpiTile label="Tax" value={fmt(totals.tax)} accent="gray" />
             <KpiTile label="Total Due" value={fmt(totals.totalDue)} sub={invoice.currency} accent="blue" large />
+          </div>
+
+          <div className="flex items-center justify-between gap-3 pt-1">
+            <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">Overall Adjustment %</span>
+            {editable ? (
+              <PctRuleInput value={overallAdjPct} onChange={handleOverallAdjChange} rules={pricingRules} disabled={busy} />
+            ) : (
+              <span className="text-xs font-bold text-gray-700 dark:text-gray-300">{overallAdjPct}%</span>
+            )}
           </div>
         </div>
       </Card>
@@ -227,13 +255,11 @@ const CustomerInvoiceDetail = ({
                   </td>
                   <td className="text-right px-3 py-2.5 tabular-nums">
                     {editable ? (
-                      <input
-                        type="number"
-                        step="0.1"
-                        min="0"
+                      <PctRuleInput
                         value={line.discountPctApplied}
-                        onChange={(e) => handleLineChange(i, "discountPctApplied", e.target.value)}
-                        className="w-16 text-right rounded-lg border border-gray-200 dark:border-gray-700 bg-transparent px-1.5 py-1"
+                        onChange={(v) => handleLineChange(i, "discountPctApplied", v)}
+                        rules={pricingRules}
+                        disabled={busy}
                       />
                     ) : (
                       `${line.discountPctApplied}%`
@@ -244,13 +270,11 @@ const CustomerInvoiceDetail = ({
                   </td>
                   <td className="text-right px-3 py-2.5 tabular-nums">
                     {editable ? (
-                      <input
-                        type="number"
-                        step="0.1"
-                        min="0"
+                      <PctRuleInput
                         value={line.maitsysAdjustmentPctApplied}
-                        onChange={(e) => handleLineChange(i, "maitsysAdjustmentPctApplied", e.target.value)}
-                        className="w-16 text-right rounded-lg border border-gray-200 dark:border-gray-700 bg-transparent px-1.5 py-1"
+                        onChange={(v) => handleLineChange(i, "maitsysAdjustmentPctApplied", v)}
+                        rules={pricingRules}
+                        disabled={busy}
                       />
                     ) : (
                       `${line.maitsysAdjustmentPctApplied}%`
@@ -283,7 +307,7 @@ const CustomerInvoiceDetail = ({
         <div className="flex items-center justify-end gap-2">
           {editable && dirty && (
             <button
-              onClick={() => onSaveLines?.(draftLines, invoice.tax > 0 ? (invoice.tax / invoice.subtotal) * 100 : 0)}
+              onClick={() => onSaveLines?.(draftLines, taxPct, overallAdjPct)}
               disabled={busy}
               className="px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 text-xs font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all disabled:opacity-50"
             >
@@ -310,6 +334,9 @@ CustomerInvoiceDetail.propTypes = {
   invoice: PropTypes.object.isRequired,
   customer: PropTypes.object,
   editable: PropTypes.bool,
+  pricingRules: PropTypes.arrayOf(
+    PropTypes.shape({ id: PropTypes.string, name: PropTypes.string, percentage: PropTypes.number }),
+  ),
   onSaveLines: PropTypes.func,
   onPayNow: PropTypes.func,
   busy: PropTypes.bool,
