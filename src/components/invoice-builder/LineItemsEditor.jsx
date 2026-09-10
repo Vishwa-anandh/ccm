@@ -1,6 +1,6 @@
-import React from "react";
+import React, { useState } from "react";
 import PropTypes from "prop-types";
-import { Plus, Trash2, Columns } from "lucide-react";
+import { Plus, Trash2, Columns, Percent } from "lucide-react";
 import { round2 } from "../../utils/pricingCalc";
 import { formatCurrency } from "../../utils/formatters";
 import PctRuleInput from "../billing/PctRuleInput";
@@ -12,13 +12,19 @@ import PctRuleInput from "../billing/PctRuleInput";
  * display-only text columns that appear on every row.
  *
  * `pricingRules` is optional — pass it (Billing's GenerateInvoicePage does)
- * to show a Discount % column with a select-a-rule-or-type-manually
- * picker, which also folds the discount into Amount. Leaving it undefined
- * (the standalone Invoice Builder page does) hides that column entirely —
- * this component's original two consumers stay identical.
+ * to make a Discount % column available, with a select-a-rule-or-type-
+ * manually picker that folds into Amount. Leaving it undefined (the
+ * standalone Invoice Builder page does) removes the feature entirely —
+ * this component's original two consumers stay identical. When available,
+ * Finance can still remove/re-add the column itself (its trash icon /
+ * "+ Add Discount %"), same as any custom column; each row keeps its own
+ * discountPct even while the column is hidden, so re-adding it doesn't
+ * lose anything already entered.
  */
 const LineItemsEditor = ({ columns, rows, onColumnsChange, onRowsChange, pricingRules }) => {
-  const showDiscount = pricingRules !== undefined;
+  const discountAvailable = pricingRules !== undefined;
+  const [discountColumnVisible, setDiscountColumnVisible] = useState(discountAvailable);
+  const showDiscount = discountAvailable && discountColumnVisible;
 
   const addRow = () => {
     onRowsChange([
@@ -68,7 +74,22 @@ const LineItemsEditor = ({ columns, rows, onColumnsChange, onRowsChange, pricing
               <th className="text-left px-2 py-1.5">Description</th>
               <th className="text-right px-2 py-1.5 w-20">Qty</th>
               <th className="text-right px-2 py-1.5 w-24">Unit Price</th>
-              {showDiscount && <th className="text-right px-2 py-1.5 w-32">Discount %</th>}
+              {showDiscount && (
+                <th className="text-right px-2 py-1.5 w-32">
+                  <div className="flex items-center justify-end gap-1">
+                    Discount %
+                    <button
+                      type="button"
+                      onClick={() => setDiscountColumnVisible(false)}
+                      aria-label="Remove Discount % column"
+                      title="Remove this column"
+                      className="text-red-400 hover:text-red-600 shrink-0"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  </div>
+                </th>
+              )}
               <th className="text-right px-2 py-1.5 w-24">Amount</th>
               {columns.map((c) => (
                 <th key={c.id} className="text-left px-2 py-1.5 w-28">
@@ -180,6 +201,15 @@ const LineItemsEditor = ({ columns, rows, onColumnsChange, onRowsChange, pricing
         >
           <Columns className="w-3.5 h-3.5" /> Add Column
         </button>
+        {discountAvailable && !discountColumnVisible && (
+          <button
+            type="button"
+            onClick={() => setDiscountColumnVisible(true)}
+            className="flex items-center gap-1.5 text-xs font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400"
+          >
+            <Percent className="w-3.5 h-3.5" /> Add Discount %
+          </button>
+        )}
       </div>
     </div>
   );
