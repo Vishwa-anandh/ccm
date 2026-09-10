@@ -601,6 +601,15 @@ export async function demoAdapter(config) {
       Object.assign(customer, body(config));
       return ok(customer, config);
     }
+    if (id && method === "delete") {
+      const idx = CUSTOMERS.findIndex((c) => c.id === id);
+      if (idx === -1) return fail("Customer not found", config, 404);
+      // Matches the pricing-rule delete's behavior: existing Customer
+      // Invoices keep their own stored copy of customerId/lines, they
+      // just won't resolve to a live customer record afterward.
+      CUSTOMERS.splice(idx, 1);
+      return ok({}, config);
+    }
   }
 
   if (method === "get" && path === "/billing/pricing-rules") {

@@ -17,6 +17,11 @@ export const updateCustomer = async (id, customerData) => {
     return data;
 };
 
+export const deleteCustomer = async (id) => {
+    const { data } = await api.delete(`/billing/customers/${id}`);
+    return data;
+};
+
 /* ── Pricing Rules ─────────────────────────────────────────── */
 
 export const getPricingRules = async () => {
