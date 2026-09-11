@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Plus, Inbox, ArrowLeft, Mail } from "lucide-react";
+import { Plus, Inbox, ArrowLeft, Mail, Search } from "lucide-react";
 import { getCustomers, getInvoices, getInvoiceEmail } from "../../api/billingApi";
 import { formatCurrency } from "../../utils/formatters";
 import CustomerInvoiceDetail, { StatusPill } from "../../components/billing/CustomerInvoiceDetail";
@@ -24,11 +24,31 @@ const InvoicesTab = () => {
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState(location.state?.selectedInvoiceId ?? null);
   const [viewingEmail, setViewingEmail] = useState(null);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [customerFilter, setCustomerFilter] = useState("all");
+
+  const customerFor = (id) => customers.find((c) => c.id === id);
 
   const sortedInvoices = useMemo(
     () => invoices.slice().sort((a, b) => (a.invoiceDate < b.invoiceDate ? 1 : -1)),
     [invoices],
   );
+
+  const filteredInvoices = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return sortedInvoices.filter((inv) => {
+      if (statusFilter !== "all" && inv.status !== statusFilter) return false;
+      if (customerFilter !== "all" && inv.customerId !== customerFilter) return false;
+      if (!q) return true;
+      const customerName = customerFor(inv.customerId)?.name ?? "";
+      return (
+        inv.invoiceNumber.toLowerCase().includes(q) ||
+        customerName.toLowerCase().includes(q)
+      );
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sortedInvoices, search, statusFilter, customerFilter, customers]);
 
   const load = async (keepSelected = true) => {
     setLoading(true);
@@ -57,7 +77,6 @@ const InvoicesTab = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const customerFor = (id) => customers.find((c) => c.id === id);
   const selected = invoices.find((i) => i.id === selectedId);
 
   const handleViewEmail = async () => {
@@ -98,20 +117,68 @@ const InvoicesTab = () => {
         )}
 
         {!loading && invoices.length > 0 && (
-          <div className="rounded-2xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 max-h-[70vh] overflow-auto">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="text-[10px] font-bold text-gray-400 tracking-wide sticky top-0 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 z-10">
-                  <th className="text-left px-3 py-2.5 whitespace-nowrap">Invoice #</th>
-                  <th className="text-left px-3 py-2.5 whitespace-nowrap">Customer</th>
-                  <th className="text-left px-3 py-2.5 whitespace-nowrap">Invoice Date</th>
-                  <th className="text-left px-3 py-2.5 whitespace-nowrap">Due Date</th>
-                  <th className="text-left px-3 py-2.5 whitespace-nowrap">Status</th>
-                  <th className="text-right px-3 py-2.5 whitespace-nowrap">Total</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
-                {sortedInvoices.map((inv) => (
+          <>
+            {/* Search + filters, styled after the reference table's toolbar */}
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="relative flex-1 min-w-[180px]">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search invoice # or customer…"
+                  className="w-full pl-8 pr-3 py-2 text-xs rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition"
+                />
+              </div>
+              <div className="flex items-center gap-1.5 rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 pl-3 pr-1.5 py-1 text-xs">
+                <span className="text-gray-400 font-semibold whitespace-nowrap">Status:</span>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="bg-transparent border-none text-gray-700 dark:text-gray-200 font-semibold focus:outline-none py-0.5"
+                >
+                  <option value="all">All</option>
+                  <option value="Sent">Sent</option>
+                  <option value="Paid">Paid</option>
+                  <option value="Overdue">Overdue</option>
+                </select>
+              </div>
+              <div className="flex items-center gap-1.5 rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 pl-3 pr-1.5 py-1 text-xs">
+                <span className="text-gray-400 font-semibold whitespace-nowrap">Customer:</span>
+                <select
+                  value={customerFilter}
+                  onChange={(e) => setCustomerFilter(e.target.value)}
+                  className="bg-transparent border-none text-gray-700 dark:text-gray-200 font-semibold focus:outline-none py-0.5 max-w-[120px]"
+                >
+                  <option value="all">All</option>
+                  {customers.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 max-h-[70vh] overflow-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="text-[10px] font-bold text-gray-400 tracking-wide sticky top-0 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 z-10">
+                    <th className="text-left px-3 py-2.5 whitespace-nowrap">Invoice #</th>
+                    <th className="text-left px-3 py-2.5 whitespace-nowrap">Customer</th>
+                    <th className="text-left px-3 py-2.5 whitespace-nowrap">Invoice Date</th>
+                    <th className="text-left px-3 py-2.5 whitespace-nowrap">Due Date</th>
+                    <th className="text-left px-3 py-2.5 whitespace-nowrap">Status</th>
+                    <th className="text-right px-3 py-2.5 whitespace-nowrap">Total</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
+                  {filteredInvoices.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="px-3 py-8 text-center text-gray-400">
+                        No invoices match these filters.
+                      </td>
+                    </tr>
+                  )}
+                  {filteredInvoices.map((inv) => (
                   <tr
                     key={inv.id}
                     onClick={() => setSelectedId(inv.id)}
@@ -136,10 +203,11 @@ const InvoicesTab = () => {
                       {formatCurrency(inv.totalDue, inv.currency)}
                     </td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
 
