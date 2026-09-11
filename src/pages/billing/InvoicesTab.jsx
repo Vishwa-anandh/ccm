@@ -6,6 +6,7 @@ import { formatCurrency } from "../../utils/formatters";
 import CustomerInvoiceDetail, { StatusPill } from "../../components/billing/CustomerInvoiceDetail";
 import SentEmailModal from "../../components/billing/SentEmailModal";
 import { fireToast } from "../../components/ToastProvider";
+import Dropdown from "../../components/Dropdown";
 
 /**
  * Invoices — Finance's full list across every customer, view-only.
@@ -130,32 +131,26 @@ const InvoicesTab = () => {
                   className="w-full pl-8 pr-3 py-2 text-xs rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition"
                 />
               </div>
-              <div className="flex items-center gap-1.5 rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 pl-3 pr-1.5 py-1 text-xs">
-                <span className="text-gray-400 font-semibold whitespace-nowrap">Status:</span>
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="bg-transparent border-none text-gray-700 dark:text-gray-200 font-semibold focus:outline-none py-0.5"
-                >
-                  <option value="all">All</option>
-                  <option value="Sent">Sent</option>
-                  <option value="Paid">Paid</option>
-                  <option value="Overdue">Overdue</option>
-                </select>
-              </div>
-              <div className="flex items-center gap-1.5 rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 pl-3 pr-1.5 py-1 text-xs">
-                <span className="text-gray-400 font-semibold whitespace-nowrap">Customer:</span>
-                <select
-                  value={customerFilter}
-                  onChange={(e) => setCustomerFilter(e.target.value)}
-                  className="bg-transparent border-none text-gray-700 dark:text-gray-200 font-semibold focus:outline-none py-0.5 max-w-[120px]"
-                >
-                  <option value="all">All</option>
-                  {customers.map((c) => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-                </select>
-              </div>
+              <Dropdown
+                label="Status"
+                value={statusFilter}
+                onChange={setStatusFilter}
+                options={[
+                  { value: "all", label: "All" },
+                  { value: "Sent", label: "Sent" },
+                  { value: "Paid", label: "Paid" },
+                  { value: "Overdue", label: "Overdue" },
+                ]}
+              />
+              <Dropdown
+                label="Customer"
+                value={customerFilter}
+                onChange={setCustomerFilter}
+                options={[
+                  { value: "all", label: "All" },
+                  ...customers.map((c) => ({ value: c.id, label: c.name })),
+                ]}
+              />
             </div>
 
             <div className="rounded-2xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 max-h-[70vh] overflow-auto">
