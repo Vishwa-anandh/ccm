@@ -150,7 +150,12 @@ const CustomerInvoiceDetail = ({ invoice, customer, allowPayment = false, onPayN
             ))}
           </div>
 
-          <div className="grid gap-2 mt-3 grid-cols-2 sm:grid-cols-4">
+          {/* Always 2x2, never a viewport-based 4-across breakpoint: this
+              component sits in a half-width split pane in InvoicesTab, so a
+              "sm:" breakpoint (which measures the viewport, not this
+              container) would cram 4 tiles into ~470px and wrap the dollar
+              amounts mid-digit. */}
+          <div className="grid gap-2 mt-3 grid-cols-2">
             <KpiTile label="Line Items Subtotal" value={fmt(invoice.lineSubtotal)} accent="gray" />
             <KpiTile
               label="Overall Adjustment"

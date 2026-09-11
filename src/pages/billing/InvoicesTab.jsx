@@ -69,13 +69,13 @@ const InvoicesTab = () => {
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-10 gap-4">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
       {/* Below lg this is a master-detail drill-down: the list and detail
           are never both visible on a narrow screen, so selecting an
           invoice doesn't leave Finance scrolling past the rest of the
           list to reach it — at lg+ both panes show side by side as before,
-          30/70 split. */}
-      <div className={`lg:col-span-3 space-y-3 ${selected ? "hidden lg:block" : ""}`}>
+          50/50 split. */}
+      <div className={`space-y-3 ${selected ? "hidden lg:block" : ""}`}>
         <button onClick={() => navigate("/billing/generate")} className="btn-primary w-full justify-center">
           <Plus className="w-4 h-4" /> Create Invoice
         </button>
@@ -97,38 +97,53 @@ const InvoicesTab = () => {
           </div>
         )}
 
-        <div className="space-y-2 max-h-[70vh] overflow-y-auto pr-1">
-          {sortedInvoices.map((inv) => (
-            <button
-              key={inv.id}
-              onClick={() => setSelectedId(inv.id)}
-              className={`w-full text-left p-4 rounded-2xl border transition-all ${
-                selectedId === inv.id
-                  ? "border-brand-400 bg-brand-50/50 dark:bg-brand-950/20"
-                  : "border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 hover:border-gray-200 dark:hover:border-gray-700"
-              }`}
-            >
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-xs font-bold text-gray-900 dark:text-white font-mono truncate">
-                  #{inv.invoiceNumber}
-                </span>
-                <StatusPill status={inv.status} />
-              </div>
-              <p className="text-xs text-gray-500 mt-1 truncate">{customerFor(inv.customerId)?.name}</p>
-              <div className="flex items-center justify-between mt-2">
-                <span className="text-[10px] text-gray-400">
-                  {inv.invoiceDate} · Due {inv.dueDate}{inv.paymentTermName ? ` (${inv.paymentTermName})` : ""}
-                </span>
-                <span className="text-sm font-bold text-gray-900 dark:text-white tabular-nums">
-                  {formatCurrency(inv.totalDue, inv.currency)}
-                </span>
-              </div>
-            </button>
-          ))}
-        </div>
+        {!loading && invoices.length > 0 && (
+          <div className="rounded-2xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 max-h-[70vh] overflow-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="text-[10px] font-bold text-gray-400 tracking-wide sticky top-0 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 z-10">
+                  <th className="text-left px-3 py-2.5 whitespace-nowrap">Invoice #</th>
+                  <th className="text-left px-3 py-2.5 whitespace-nowrap">Customer</th>
+                  <th className="text-left px-3 py-2.5 whitespace-nowrap">Invoice Date</th>
+                  <th className="text-left px-3 py-2.5 whitespace-nowrap">Due Date</th>
+                  <th className="text-left px-3 py-2.5 whitespace-nowrap">Status</th>
+                  <th className="text-right px-3 py-2.5 whitespace-nowrap">Total</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
+                {sortedInvoices.map((inv) => (
+                  <tr
+                    key={inv.id}
+                    onClick={() => setSelectedId(inv.id)}
+                    className={`cursor-pointer transition-colors ${
+                      selectedId === inv.id
+                        ? "bg-brand-50/60 dark:bg-brand-950/20"
+                        : "hover:bg-gray-50 dark:hover:bg-gray-800/60"
+                    }`}
+                  >
+                    <td className="px-3 py-2.5 font-bold text-gray-900 dark:text-white font-mono whitespace-nowrap">
+                      #{inv.invoiceNumber}
+                    </td>
+                    <td className="px-3 py-2.5 text-gray-600 dark:text-gray-300 max-w-[130px] truncate">
+                      {customerFor(inv.customerId)?.name}
+                    </td>
+                    <td className="px-3 py-2.5 text-gray-500 whitespace-nowrap">{inv.invoiceDate}</td>
+                    <td className="px-3 py-2.5 text-gray-500 whitespace-nowrap">{inv.dueDate}</td>
+                    <td className="px-3 py-2.5 whitespace-nowrap">
+                      <StatusPill status={inv.status} />
+                    </td>
+                    <td className="px-3 py-2.5 text-right font-bold text-gray-900 dark:text-white tabular-nums whitespace-nowrap">
+                      {formatCurrency(inv.totalDue, inv.currency)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
-      <div className={`lg:col-span-7 ${!selected ? "hidden lg:block" : ""}`}>
+      <div className={`${!selected ? "hidden lg:block" : ""}`}>
         {selected ? (
           <div className="space-y-3">
             <div className="flex items-center justify-between gap-2">
