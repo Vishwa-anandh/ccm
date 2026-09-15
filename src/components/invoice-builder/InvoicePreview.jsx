@@ -28,7 +28,9 @@ const InvoicePreview = forwardRef(
     {
       invoiceNumber,
       invoiceDate,
-      billingEndDate,
+      poNumber,
+      billingPeriodStart,
+      billingPeriodEnd,
       dueDate,
       paymentTermName,
       billTo,
@@ -108,10 +110,18 @@ const InvoicePreview = forwardRef(
                 <span className="text-gray-500">Invoice Date</span>
                 <span className="font-semibold text-gray-800">{invoiceDate}</span>
               </div>
-              {billingEndDate && (
+              {poNumber && (
                 <div className="flex justify-between gap-3">
-                  <span className="text-gray-500">Billing End Date</span>
-                  <span className="font-semibold text-gray-800">{billingEndDate}</span>
+                  <span className="text-gray-500">PO Number</span>
+                  <span className="font-semibold text-gray-800">{poNumber}</span>
+                </div>
+              )}
+              {billingPeriodStart && billingPeriodEnd && (
+                <div className="flex justify-between gap-3">
+                  <span className="text-gray-500">Billing Period</span>
+                  <span className="font-semibold text-gray-800">
+                    {billingPeriodStart} – {billingPeriodEnd}
+                  </span>
                 </div>
               )}
               {paymentTermName && (
@@ -179,7 +189,7 @@ const InvoicePreview = forwardRef(
                 </div>
                 {Number(overallAdjustmentPct || 0) !== 0 && (
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Adjustment ({overallAdjustmentPct}%)</span>
+                    <span className="text-gray-500">Summary Adjustment ({overallAdjustmentPct}%)</span>
                     <span className="font-semibold">{formatCurrency(adjustmentAmount)}</span>
                   </div>
                 )}
@@ -212,7 +222,9 @@ InvoicePreview.displayName = "InvoicePreview";
 InvoicePreview.propTypes = {
   invoiceNumber: PropTypes.string.isRequired,
   invoiceDate: PropTypes.string.isRequired,
-  billingEndDate: PropTypes.string,
+  poNumber: PropTypes.string,
+  billingPeriodStart: PropTypes.string,
+  billingPeriodEnd: PropTypes.string,
   dueDate: PropTypes.string.isRequired,
   paymentTermName: PropTypes.string,
   billTo: PropTypes.shape({

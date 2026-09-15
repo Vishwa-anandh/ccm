@@ -777,7 +777,9 @@ export async function demoAdapter(config) {
     const {
       customerId,
       invoiceDate,
-      billingEndDate,
+      poNumber,
+      billingPeriodStart,
+      billingPeriodEnd,
       paymentTermId,
       customFields,
       columns,
@@ -835,7 +837,9 @@ export async function demoAdapter(config) {
       customerId,
       currency: "USD",
       invoiceDate: resolvedInvoiceDate,
-      billingEndDate: billingEndDate || null,
+      poNumber: poNumber || null,
+      billingPeriodStart: billingPeriodStart || null,
+      billingPeriodEnd: billingPeriodEnd || null,
       dueDate,
       paymentTermName: term?.name ?? null, // snapshot — survives the term being edited/deleted later
       sourceVendorInvoiceIds: [], // manually built — not linked to any ingested vendor invoice

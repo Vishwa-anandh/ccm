@@ -21,6 +21,7 @@ import TemplatePicker from "../../components/invoice-builder/TemplatePicker";
 import LogoPicker from "../../components/invoice-builder/LogoPicker";
 import SentEmailModal from "../../components/billing/SentEmailModal";
 import SendInvoiceConfirmModal from "../../components/billing/SendInvoiceConfirmModal";
+import Dropdown from "../../components/Dropdown";
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
 // Pure calendar-date arithmetic via Date.UTC, deliberately never touching
@@ -53,7 +54,9 @@ const GenerateInvoicePage = () => {
   const [paymentTerms, setPaymentTerms] = useState([]);
   const [paymentTermId, setPaymentTermId] = useState("");
   const [invoiceDate, setInvoiceDate] = useState(todayIso);
-  const [billingEndDate, setBillingEndDate] = useState(todayIso);
+  const [poNumber, setPoNumber] = useState("");
+  const [billingPeriodStart, setBillingPeriodStart] = useState(todayIso);
+  const [billingPeriodEnd, setBillingPeriodEnd] = useState(todayIso);
   const [taxPct, setTaxPct] = useState(0);
   const [overallAdjustmentPct, setOverallAdjustmentPct] = useState(0);
   const [template, setTemplate] = useState("classic");
@@ -159,7 +162,9 @@ const GenerateInvoicePage = () => {
       const { invoice, email } = await buildInvoice({
         customerId,
         invoiceDate,
-        billingEndDate,
+        poNumber,
+        billingPeriodStart,
+        billingPeriodEnd,
         paymentTermId,
         customFields,
         columns,
@@ -307,17 +312,15 @@ const GenerateInvoicePage = () => {
               {loadingCustomers ? (
                 <div className="skeleton rounded-xl h-10 w-full" />
               ) : (
-                <select
+                <Dropdown
+                  variant="input"
                   value={customerId}
-                  onChange={(e) => setCustomerId(e.target.value)}
-                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm font-semibold"
-                >
-                  {customers.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setCustomerId}
+                  options={customers.map((c) => ({
+                    value: c.id,
+                    label: c.discountPct > 0 ? `${c.name} — ${c.discountPct}% discount` : c.name,
+                  }))}
+                />
               )}
             </div>
 
@@ -349,11 +352,33 @@ const GenerateInvoicePage = () => {
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1">Billing End Date</label>
+                <label className="block text-xs font-semibold text-gray-500 mb-1">PO Number</label>
+                <input
+                  type="text"
+                  value={poNumber}
+                  onChange={(e) => setPoNumber(e.target.value)}
+                  placeholder="Optional"
+                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 mb-1">Billing Period Start</label>
                 <input
                   type="date"
-                  value={billingEndDate}
-                  onChange={(e) => setBillingEndDate(e.target.value)}
+                  value={billingPeriodStart}
+                  onChange={(e) => setBillingPeriodStart(e.target.value)}
+                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 mb-1">Billing Period End</label>
+                <input
+                  type="date"
+                  value={billingPeriodEnd}
+                  onChange={(e) => setBillingPeriodEnd(e.target.value)}
                   className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm"
                 />
               </div>
@@ -367,17 +392,12 @@ const GenerateInvoicePage = () => {
                     None yet
                   </p>
                 ) : (
-                  <select
+                  <Dropdown
+                    variant="input"
                     value={paymentTermId}
-                    onChange={(e) => setPaymentTermId(e.target.value)}
-                    className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm"
-                  >
-                    {paymentTerms.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.name} ({t.days}d)
-                      </option>
-                    ))}
-                  </select>
+                    onChange={setPaymentTermId}
+                    options={paymentTerms.map((t) => ({ value: t.id, label: `${t.name} (${t.days}d)` }))}
+                  />
                 )}
               </div>
               <div>
@@ -392,7 +412,7 @@ const GenerateInvoicePage = () => {
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1">Overall Adj. %</label>
+                <label className="block text-xs font-semibold text-gray-500 mb-1">Summary Adj. %</label>
                 <input
                   type="number"
                   min="0"
@@ -435,7 +455,9 @@ const GenerateInvoicePage = () => {
                   ref={previewRef}
                   invoiceNumber="PREVIEW"
                   invoiceDate={invoiceDate}
-                  billingEndDate={billingEndDate}
+                  poNumber={poNumber}
+                  billingPeriodStart={billingPeriodStart}
+                  billingPeriodEnd={billingPeriodEnd}
                   dueDate={computedDueDate}
                   paymentTermName={selectedTerm?.name}
                   billTo={{

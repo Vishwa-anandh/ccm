@@ -145,7 +145,10 @@ const InvoicesTab = () => {
                 onChange={setCustomerFilter}
                 options={[
                   { value: "all", label: "All" },
-                  ...customers.map((c) => ({ value: c.id, label: c.name })),
+                  ...customers.map((c) => ({
+                    value: c.id,
+                    label: c.discountPct > 0 ? `${c.name} (${c.discountPct}%)` : c.name,
+                  })),
                 ]}
               />
             </div>
@@ -185,6 +188,12 @@ const InvoicesTab = () => {
                     </td>
                     <td className="px-3 py-2.5 text-gray-600 dark:text-gray-300 max-w-[130px] truncate">
                       {customerFor(inv.customerId)?.name}
+                      {customerFor(inv.customerId)?.discountPct > 0 && (
+                        <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
+                          {" "}
+                          ({customerFor(inv.customerId).discountPct}%)
+                        </span>
+                      )}
                     </td>
                     <td className="px-3 py-2.5 text-gray-500 whitespace-nowrap">{inv.invoiceDate}</td>
                     <td className="px-3 py-2.5 text-gray-500 whitespace-nowrap">{inv.dueDate}</td>

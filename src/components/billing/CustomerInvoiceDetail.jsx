@@ -121,6 +121,11 @@ const CustomerInvoiceDetail = ({ invoice, customer, allowPayment = false, onPayN
             </div>
             <p className="text-xs text-gray-400 font-medium truncate flex items-center gap-1">
               <Building2 className="w-3 h-3" /> {customer?.name ?? "—"}
+              {customer?.discountPct > 0 && (
+                <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
+                  · {customer.discountPct}% discount
+                </span>
+              )}
             </p>
           </div>
         </div>
@@ -128,8 +133,16 @@ const CustomerInvoiceDetail = ({ invoice, customer, allowPayment = false, onPayN
         <div className="px-5 py-4 space-y-3">
           <div className="flex flex-wrap gap-2">
             <MetaChip icon={FileText} label="Invoice Date" value={fmtDate(invoice.invoiceDate)} accent="gray" />
-            {invoice.billingEndDate && (
-              <MetaChip icon={Calendar} label="Billing End Date" value={fmtDate(invoice.billingEndDate)} accent="gray" />
+            {invoice.poNumber && (
+              <MetaChip icon={Tag} label="PO Number" value={invoice.poNumber} accent="gray" />
+            )}
+            {invoice.billingPeriodStart && invoice.billingPeriodEnd && (
+              <MetaChip
+                icon={Calendar}
+                label="Billing Period"
+                value={`${fmtDate(invoice.billingPeriodStart)} – ${fmtDate(invoice.billingPeriodEnd)}`}
+                accent="gray"
+              />
             )}
             {invoice.paymentTermName && (
               <MetaChip icon={Calendar} label="Payment Term" value={invoice.paymentTermName} accent="green" />
@@ -170,7 +183,7 @@ const CustomerInvoiceDetail = ({ invoice, customer, allowPayment = false, onPayN
           <div className="grid gap-2 mt-3 grid-cols-2">
             <KpiTile label="Line Items Subtotal" value={fmt(invoice.lineSubtotal)} accent="gray" />
             <KpiTile
-              label="Overall Adjustment"
+              label="Summary Adjustment"
               value={fmt(invoice.overallAdjustmentAmount)}
               sub={`${overallAdjPct}%`}
               accent="gray"

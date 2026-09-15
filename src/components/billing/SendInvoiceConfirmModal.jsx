@@ -65,7 +65,8 @@ const SendInvoiceConfirmModal = ({
                 Confirm &amp; send invoice
               </p>
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 leading-relaxed">
-                Review these line items before emailing {customer?.name ?? "this customer"}.
+                Review these line items before emailing {customer?.name ?? "this customer"}
+                {customer?.discountPct > 0 ? ` (${customer.discountPct}% discount)` : ""}.
               </p>
             </div>
           </div>
@@ -116,7 +117,7 @@ const SendInvoiceConfirmModal = ({
           </div>
           {Number(overallAdjustmentPct || 0) !== 0 && (
             <div className="flex justify-between">
-              <span className="text-gray-500">Adjustment ({overallAdjustmentPct}%)</span>
+              <span className="text-gray-500">Summary Adjustment ({overallAdjustmentPct}%)</span>
               <span className="font-semibold text-gray-800 dark:text-gray-200">{fmt(adjustmentAmount)}</span>
             </div>
           )}
@@ -150,7 +151,7 @@ const SendInvoiceConfirmModal = ({
 
 SendInvoiceConfirmModal.propTypes = {
   open: PropTypes.bool.isRequired,
-  customer: PropTypes.shape({ name: PropTypes.string }),
+  customer: PropTypes.shape({ name: PropTypes.string, discountPct: PropTypes.number }),
   rows: PropTypes.array.isRequired,
   taxPct: PropTypes.number.isRequired,
   overallAdjustmentPct: PropTypes.number,
