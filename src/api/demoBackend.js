@@ -543,7 +543,7 @@ const CUSTOMER_INVOICES = loadPersisted("invoices", [
   },
   {
     id: "cinv-4", invoiceNumber: "INV-2026-0010", customerId: "cust-2", currency: "USD",
-    invoiceDate: "2026-09-07", dueDate: "2026-09-22", paymentTermName: "Net 15",
+    invoiceDate: "2026-09-07", dueDate: "2026-09-22", paymentTermName: "15 days",
     sourceVendorInvoiceIds: [],
     status: "Sent",
     customFields: [{ id: "cf-demo-1", label: "PO Number", value: "PO-77410" }],
@@ -554,7 +554,7 @@ const CUSTOMER_INVOICES = loadPersisted("invoices", [
   },
   {
     id: "cinv-5", invoiceNumber: "INV-2026-0011", customerId: "cust-3", currency: "USD",
-    invoiceDate: "2026-09-01", dueDate: "2026-09-30", paymentTermName: "Net 30",
+    invoiceDate: "2026-09-01", dueDate: "2026-09-30", paymentTermName: "30 days",
     sourceVendorInvoiceIds: [],
     status: "Sent",
     customFields: [], columns: [],
@@ -841,7 +841,10 @@ export async function demoAdapter(config) {
       billingPeriodStart: billingPeriodStart || null,
       billingPeriodEnd: billingPeriodEnd || null,
       dueDate,
-      paymentTermName: term?.name ?? null, // snapshot — survives the term being edited/deleted later
+      // Snapshot as a plain day count ("30 days"), not the term's own
+      // editable name ("Net 30") — survives the term being edited/deleted
+      // later, and reads as what actually matters to the customer.
+      paymentTermName: term ? `${term.days} day${term.days === 1 ? "" : "s"}` : null,
       sourceVendorInvoiceIds: [], // manually built — not linked to any ingested vendor invoice
       // No Draft/Approved gate — a created invoice is immediately final and
       // visible (both here in the Finance console and on the matching

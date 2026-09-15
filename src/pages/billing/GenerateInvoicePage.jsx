@@ -95,6 +95,11 @@ const GenerateInvoicePage = () => {
   // Due Date = Invoice Date + the selected term's day count — read-only,
   // shown so Finance can see what date it resolves to before creating.
   const computedDueDate = addDaysIso(invoiceDate, selectedTerm?.days ?? 14);
+  // Displayed/stored as a plain day count ("30 days") rather than the
+  // term's own editable name ("Net 30") — the name is just a label Finance
+  // picks from in Payment Terms; what actually matters to a customer
+  // reading the invoice is how many days they have to pay.
+  const paymentTermLabel = selectedTerm ? `${selectedTerm.days} day${selectedTerm.days === 1 ? "" : "s"}` : null;
   const canCreate = customerId && rows.some((r) => r.description.trim().length > 0);
 
   // Each line's Discount checkbox applies customer.discountPct — if
@@ -396,7 +401,10 @@ const GenerateInvoicePage = () => {
                     variant="input"
                     value={paymentTermId}
                     onChange={setPaymentTermId}
-                    options={paymentTerms.map((t) => ({ value: t.id, label: `${t.name} (${t.days}d)` }))}
+                    options={paymentTerms.map((t) => ({
+                      value: t.id,
+                      label: `${t.days} day${t.days === 1 ? "" : "s"}`,
+                    }))}
                   />
                 )}
               </div>
@@ -459,7 +467,7 @@ const GenerateInvoicePage = () => {
                   billingPeriodStart={billingPeriodStart}
                   billingPeriodEnd={billingPeriodEnd}
                   dueDate={computedDueDate}
-                  paymentTermName={selectedTerm?.name}
+                  paymentTermName={paymentTermLabel}
                   billTo={{
                     name: customer?.name ?? "",
                     address: customer?.billingAddress ?? "",
