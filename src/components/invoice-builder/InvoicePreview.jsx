@@ -116,14 +116,6 @@ const InvoicePreview = forwardRef(
                   <span className="font-semibold text-gray-800">{poNumber}</span>
                 </div>
               )}
-              {billingPeriodStart && billingPeriodEnd && (
-                <div className="flex justify-between gap-3">
-                  <span className="text-gray-500">Billing Period</span>
-                  <span className="font-semibold text-gray-800">
-                    {billingPeriodStart} – {billingPeriodEnd}
-                  </span>
-                </div>
-              )}
               {paymentTermName && (
                 <div className="flex justify-between gap-3">
                   <span className="text-gray-500">Payment Terms</span>
@@ -143,6 +135,21 @@ const InvoicePreview = forwardRef(
             </div>
           </div>
         </div>
+
+        {/* Full-width statement, not a cramped two-column row — mirrors the
+            reference vendor invoice's own "This invoice is for the billing
+            period X - Y" line, which needs the page's full width to read
+            cleanly (a Billing Period date range is too long to sit as a
+            label/value pair inside the narrow Invoice Summary card). */}
+        {billingPeriodStart && billingPeriodEnd && (
+          <p className="px-10 pt-4 text-sm text-gray-700">
+            This invoice is for the billing period{" "}
+            <span className="font-semibold">
+              {billingPeriodStart} – {billingPeriodEnd}
+            </span>
+            .
+          </p>
+        )}
 
         <div className="px-10 py-8">
           <table className="w-full text-sm mb-6">

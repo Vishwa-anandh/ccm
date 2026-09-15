@@ -136,14 +136,6 @@ const CustomerInvoiceDetail = ({ invoice, customer, allowPayment = false, onPayN
             {invoice.poNumber && (
               <MetaChip icon={Tag} label="PO Number" value={invoice.poNumber} accent="gray" />
             )}
-            {invoice.billingPeriodStart && invoice.billingPeriodEnd && (
-              <MetaChip
-                icon={Calendar}
-                label="Billing Period"
-                value={`${fmtDate(invoice.billingPeriodStart)} – ${fmtDate(invoice.billingPeriodEnd)}`}
-                accent="gray"
-              />
-            )}
             {invoice.paymentTermName && (
               <MetaChip icon={Calendar} label="Payment Term" value={invoice.paymentTermName} accent="green" />
             )}
@@ -174,6 +166,21 @@ const CustomerInvoiceDetail = ({ invoice, customer, allowPayment = false, onPayN
               <MetaChip key={f.id} icon={Tag} label={f.label} value={f.value} accent="gray" />
             ))}
           </div>
+
+          {/* A Billing Period date range is too long to fit a MetaChip's
+              label/value pair without wrapping mid-word in this narrow,
+              half-width split pane — shown instead as its own full-width
+              statement, the same way the reference vendor invoice states
+              its billing period as a plain sentence rather than a chip. */}
+          {invoice.billingPeriodStart && invoice.billingPeriodEnd && (
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              This invoice is for the billing period{" "}
+              <span className="font-semibold text-gray-700 dark:text-gray-300">
+                {fmtDate(invoice.billingPeriodStart)} – {fmtDate(invoice.billingPeriodEnd)}
+              </span>
+              .
+            </p>
+          )}
 
           {/* Always 2x2, never a viewport-based 4-across breakpoint: this
               component sits in a half-width split pane in InvoicesTab, so a
