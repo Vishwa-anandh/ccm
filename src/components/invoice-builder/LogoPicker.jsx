@@ -1,7 +1,7 @@
 import React from "react";
 import PropTypes from "prop-types";
 import { Check } from "lucide-react";
-import { CCM_LOGO_SRC, MaitsysMark } from "./InvoiceLogos";
+import { CCM_LOGO_SRC, MAITSYS_LOGO_SRC } from "./InvoiceLogos";
 
 /**
  * LogoPicker — which sender identity (Maitsys or CCM) prints on the
@@ -13,14 +13,13 @@ const LogoPicker = ({ value, onChange }) => (
     <button
       type="button"
       onClick={() => onChange("maitsys")}
-      className={`flex items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-semibold transition-all ${
+      className={`flex items-center justify-center gap-1.5 rounded-lg border px-2 py-2 text-sm font-semibold transition-all ${
         value === "maitsys"
           ? "border-brand-400 bg-brand-50/50 dark:bg-brand-950/20"
           : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
       }`}
     >
-      <MaitsysMark className="w-4 h-4 shrink-0" />
-      <span className="text-gray-900 dark:text-white">Maitsys</span>
+      <img src={MAITSYS_LOGO_SRC} alt="Maitsys" className="h-4 w-auto max-w-[70px] object-contain shrink-0" />
       {value === "maitsys" && <Check className="w-3.5 h-3.5 text-brand-600 shrink-0" />}
     </button>
     <button

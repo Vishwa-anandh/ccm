@@ -11,15 +11,21 @@ import { formatCurrency } from "../../utils/formatters";
  * display-only text columns that appear on every row.
  *
  * `discountAvailable` is optional — pass true (Billing's
- * GenerateInvoicePage does) to make a Discount % column available, which
+ * GenerateInvoicePage does) to make a Discount column available, which
  * folds into Amount. Leaving it unset (the standalone Invoice Builder
  * page does) removes the feature entirely — this component's original two
  * consumers stay identical. When available, Finance can still remove/
- * re-add the column itself (its trash icon / "+ Add Discount %"), same as
+ * re-add the column itself (its trash icon / "+ Add Discount"), same as
  * any custom column; each row keeps its own discountPct even while the
  * column is hidden, so re-adding it doesn't lose anything already entered.
+ *
+ * The Discount column is a per-line checkbox, not a free-text %: checking
+ * a row applies `customerDiscountPct` (the selected customer's own
+ * Discount % field) to that line; unchecking clears it back to 0%. There's
+ * no manual per-line override — the single source of the percentage is
+ * always the customer record.
  */
-const LineItemsEditor = ({ columns, rows, onColumnsChange, onRowsChange, discountAvailable = false }) => {
+const LineItemsEditor = ({ columns, rows, onColumnsChange, onRowsChange, discountAvailable = false, customerDiscountPct = 0 }) => {
   const [discountColumnVisible, setDiscountColumnVisible] = useState(discountAvailable);
   const showDiscount = discountAvailable && discountColumnVisible;
 
@@ -74,11 +80,11 @@ const LineItemsEditor = ({ columns, rows, onColumnsChange, onRowsChange, discoun
               {showDiscount && (
                 <th className="text-right px-2 py-1.5 w-28">
                   <div className="flex items-center justify-end gap-1">
-                    Discount %
+                    Discount
                     <button
                       type="button"
                       onClick={() => setDiscountColumnVisible(false)}
-                      aria-label="Remove Discount % column"
+                      aria-label="Remove Discount column"
                       title="Remove this column"
                       className="text-red-400 hover:text-red-600 shrink-0"
                     >
@@ -148,14 +154,21 @@ const LineItemsEditor = ({ columns, rows, onColumnsChange, onRowsChange, discoun
                   </td>
                   {showDiscount && (
                     <td className="px-2 py-1.5">
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.1"
-                        value={r.discountPct ?? 0}
-                        onChange={(e) => updateRow(r.id, "discountPct", Number(e.target.value))}
-                        className="w-full text-right bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-2"
-                      />
+                      <label
+                        className={`flex items-center justify-end gap-1.5 ${customerDiscountPct > 0 ? "cursor-pointer" : "cursor-not-allowed opacity-50"}`}
+                        title={customerDiscountPct > 0 ? "" : "Select a customer with a Discount % set first"}
+                      >
+                        <span className="text-gray-500 dark:text-gray-400 tabular-nums">
+                          {customerDiscountPct > 0 ? `${customerDiscountPct}%` : "—"}
+                        </span>
+                        <input
+                          type="checkbox"
+                          disabled={customerDiscountPct <= 0}
+                          checked={Number(r.discountPct || 0) > 0}
+                          onChange={(e) => updateRow(r.id, "discountPct", e.target.checked ? customerDiscountPct : 0)}
+                          className="rounded border-gray-300 text-brand-600 focus:ring-brand-500 disabled:cursor-not-allowed"
+                        />
+                      </label>
                     </td>
                   )}
                   <td className="px-2 py-1.5 text-right font-bold tabular-nums text-gray-700 dark:text-gray-300">
@@ -207,7 +220,7 @@ const LineItemsEditor = ({ columns, rows, onColumnsChange, onRowsChange, discoun
             onClick={() => setDiscountColumnVisible(true)}
             className="flex items-center gap-1.5 text-xs font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400"
           >
-            <Percent className="w-3.5 h-3.5" /> Add Discount %
+            <Percent className="w-3.5 h-3.5" /> Add Discount
           </button>
         )}
       </div>
@@ -232,6 +245,7 @@ LineItemsEditor.propTypes = {
   onColumnsChange: PropTypes.func.isRequired,
   onRowsChange: PropTypes.func.isRequired,
   discountAvailable: PropTypes.bool,
+  customerDiscountPct: PropTypes.number,
 };
 
 export default LineItemsEditor;

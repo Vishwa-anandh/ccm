@@ -2,22 +2,16 @@ import React, { forwardRef } from "react";
 import PropTypes from "prop-types";
 import { round2 } from "../../utils/pricingCalc";
 import { formatCurrency } from "../../utils/formatters";
-import { CCM_LOGO_SRC, MaitsysMark } from "./InvoiceLogos";
+import { CCM_LOGO_SRC, MAITSYS_LOGO_SRC } from "./InvoiceLogos";
 
-// Two selectable sender identities ("logo" prop). CCM's mark is the
-// existing /app-logo.png image asset; Maitsys's mark is the MaitsysMark
-// component (see InvoiceLogos.jsx for why it's inline SVG, not an image).
+// Two selectable sender identities ("logo" prop). CCM's mark
+// (/app-logo.png) is icon-only, so its name/email/website print beside
+// it; Maitsys's mark (/maitsys-logo.png) is a full wordmark that already
+// contains "MAITSYS", so only email/website print beside it — repeating
+// the name would be redundant.
 const SENDER_PROFILES = {
-  maitsys: {
-    name: "Maitsys",
-    email: "contact@maitsys.com",
-    website: "www.maitsys.com",
-  },
-  ccm: {
-    name: "CCM",
-    email: "billing@ccm.io",
-    website: "www.ccm.io",
-  },
+  maitsys: { name: "Maitsys", email: "contact@maitsys.com", website: "www.maitsys.com" },
+  ccm: { name: "CCM", email: "billing@ccm.io", website: "www.ccm.io" },
 };
 
 /**
@@ -68,15 +62,23 @@ const InvoicePreview = forwardRef(
         <div className={`flex items-start justify-between p-10 pb-6 ${modern ? "bg-brand-600 text-white" : ""}`}>
           <div className="flex items-center gap-3 min-w-0">
             {logo === "ccm" ? (
-              <img src={CCM_LOGO_SRC} alt="CCM" className="w-12 h-12 object-contain shrink-0" />
+              <>
+                <img src={CCM_LOGO_SRC} alt="CCM" className="w-12 h-12 object-contain shrink-0" />
+                <div className="min-w-0">
+                  <p className="font-bold text-lg">{sender.name}</p>
+                  <p className={`text-xs ${modern ? "text-white/80" : "text-gray-500"}`}>{sender.email}</p>
+                  <p className={`text-xs ${modern ? "text-white/80" : "text-gray-500"}`}>{sender.website}</p>
+                </div>
+              </>
             ) : (
-              <MaitsysMark className="w-12 h-12 shrink-0" />
+              <>
+                <img src={MAITSYS_LOGO_SRC} alt="Maitsys" className="h-10 w-auto max-w-[200px] object-contain shrink-0" />
+                <div className="min-w-0">
+                  <p className={`text-xs ${modern ? "text-white/80" : "text-gray-500"}`}>{sender.email}</p>
+                  <p className={`text-xs ${modern ? "text-white/80" : "text-gray-500"}`}>{sender.website}</p>
+                </div>
+              </>
             )}
-            <div className="min-w-0">
-              <p className="font-bold text-lg">{sender.name}</p>
-              <p className={`text-xs ${modern ? "text-white/80" : "text-gray-500"}`}>{sender.email}</p>
-              <p className={`text-xs ${modern ? "text-white/80" : "text-gray-500"}`}>{sender.website}</p>
-            </div>
           </div>
           <p className="text-2xl font-bold tracking-tight shrink-0">INVOICE</p>
         </div>

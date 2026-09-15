@@ -59,7 +59,6 @@ const GenerateInvoicePage = () => {
   const [customFields, setCustomFields] = useState([]);
   const [columns, setColumns] = useState([]);
   const [rows, setRows] = useState([]);
-  const [applyCustomerDiscount, setApplyCustomerDiscount] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [showPreview, setShowPreview] = useState(true);
@@ -92,14 +91,18 @@ const GenerateInvoicePage = () => {
   const computedDueDate = addDaysIso(invoiceDate, selectedTerm?.days ?? 14);
   const canCreate = customerId && rows.some((r) => r.description.trim().length > 0);
 
-  // Re-applies whenever the checkbox is on and either the selected
-  // customer or its discount changes, so switching customers mid-review
-  // keeps every line in sync rather than leaving stale values behind.
+  // Each line's Discount checkbox applies customer.discountPct — if
+  // Finance switches customers after already checking some rows, those
+  // rows should track the new customer's % rather than keep the old
+  // customer's stale number silently baked in. Unchecked rows (0%) are
+  // untouched either way.
   useEffect(() => {
-    if (!applyCustomerDiscount || !customer) return;
-    setRows((prev) => prev.map((r) => ({ ...r, discountPct: customer.discountPct ?? 0 })));
+    if (!customer) return;
+    setRows((prev) =>
+      prev.map((r) => (Number(r.discountPct || 0) > 0 ? { ...r, discountPct: customer.discountPct ?? 0 } : r)),
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [applyCustomerDiscount, customer?.id, customer?.discountPct]);
+  }, [customer?.id, customer?.discountPct]);
 
   const handleFile = useCallback(
     async (file) => {
@@ -315,20 +318,10 @@ const GenerateInvoicePage = () => {
               <LogoPicker value={logo} onChange={setLogo} />
             </div>
 
-            {customer && customer.discountPct > 0 && (
-              <label className="flex items-center gap-2 text-xs font-semibold text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-800 rounded-xl px-3 py-2.5 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={applyCustomerDiscount}
-                  onChange={(e) => setApplyCustomerDiscount(e.target.checked)}
-                  className="rounded border-gray-300 text-brand-600 focus:ring-brand-500"
-                />
-                Apply {customer.name}&apos;s {customer.discountPct}% discount to all line items
-              </label>
-            )}
-
             <p className="text-[10px] text-gray-400 -mt-2">
-              Set a Discount % per line below, or apply the customer's discount to all of them at once.
+              {customer && customer.discountPct > 0
+                ? `Check "Discount" on any line below to apply ${customer.name}'s ${customer.discountPct}% to it.`
+                : "This customer has no Discount % set — add one in Customers to enable per-line discounts."}
             </p>
 
             <div className="grid grid-cols-2 gap-3">
@@ -404,6 +397,7 @@ const GenerateInvoicePage = () => {
                 onColumnsChange={setColumns}
                 onRowsChange={setRows}
                 discountAvailable
+                customerDiscountPct={customer?.discountPct ?? 0}
               />
             </div>
           </div>
