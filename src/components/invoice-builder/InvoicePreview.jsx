@@ -3,20 +3,52 @@ import PropTypes from "prop-types";
 import { round2 } from "../../utils/pricingCalc";
 import { formatCurrency } from "../../utils/formatters";
 
-const MAITSYS_SENDER = {
-  name: "Maitsys",
-  logo: "/app-logo.png",
-  email: "contact@maitsys.com",
-  website: "www.maitsys.com",
+// Two selectable sender identities ("logo" prop) — CCM has no separate
+// image asset, so it renders as a lettermark badge instead of an <img>,
+// same visual weight as Maitsys's real logo image.
+const SENDER_PROFILES = {
+  maitsys: {
+    name: "Maitsys",
+    email: "contact@maitsys.com",
+    website: "www.maitsys.com",
+    image: "/app-logo.png",
+  },
+  ccm: {
+    name: "CCM",
+    email: "billing@ccm.io",
+    website: "www.ccm.io",
+    image: null, // rendered as a lettermark badge below instead
+  },
 };
 
 /**
  * InvoicePreview — the single source of visual truth for the invoice
  * document. Whatever renders here is exactly what exportInvoicePdf()
- * captures into the downloaded PDF.
+ * captures into the downloaded PDF. Layout modeled after a real vendor
+ * invoice (Microsoft's Azure billing PDF): sender + a highlighted
+ * "Invoice Summary" card up top, Bill To, a Billing Summary total box,
+ * then the line-item table — restyled with this app's own brand colors
+ * instead of the source's yellow/Microsoft branding.
  */
 const InvoicePreview = forwardRef(
-  ({ invoiceNumber, invoiceDate, dueDate, billTo, customFields, columns, rows, taxPct, overallAdjustmentPct = 0, notes, template = "classic" }, ref) => {
+  (
+    {
+      invoiceNumber,
+      invoiceDate,
+      dueDate,
+      paymentTermName,
+      billTo,
+      customFields,
+      columns,
+      rows,
+      taxPct,
+      overallAdjustmentPct = 0,
+      notes,
+      template = "classic",
+      logo = "maitsys",
+    },
+    ref,
+  ) => {
     // Folds each row's own Discount % (set via LineItemsEditor's optional
     // Discount column — undefined/0 for callers that don't offer it, e.g.
     // the standalone Invoice Builder) into the printed Amount.
@@ -29,53 +61,87 @@ const InvoicePreview = forwardRef(
     const tax = round2(subtotal * (Number(taxPct || 0) / 100));
     const total = round2(subtotal + tax);
     const modern = template === "modern";
+    const sender = SENDER_PROFILES[logo] ?? SENDER_PROFILES.maitsys;
+    const hasDiscountColumn = rows.some((r) => Number(r.discountPct || 0) !== 0);
 
     return (
       <div ref={ref} className="bg-white text-gray-900 w-full" style={{ minHeight: 600 }}>
-        <div className={`flex items-start justify-between p-10 pb-8 ${modern ? "bg-brand-600 text-white" : ""}`}>
-          <div className="flex items-center gap-3">
-            <img src={MAITSYS_SENDER.logo} alt="Maitsys" className="w-12 h-12 object-contain" />
-            <div>
-              <p className="font-bold text-lg">{MAITSYS_SENDER.name}</p>
-              <p className={`text-xs ${modern ? "text-white/80" : "text-gray-500"}`}>{MAITSYS_SENDER.email}</p>
-              <p className={`text-xs ${modern ? "text-white/80" : "text-gray-500"}`}>{MAITSYS_SENDER.website}</p>
+        <div className={`flex items-start justify-between p-10 pb-6 ${modern ? "bg-brand-600 text-white" : ""}`}>
+          <div className="flex items-center gap-3 min-w-0">
+            {sender.image ? (
+              <img src={sender.image} alt={sender.name} className="w-12 h-12 object-contain shrink-0" />
+            ) : (
+              <div
+                className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 font-bold text-sm tracking-tight ${
+                  modern ? "bg-white/15 text-white" : "bg-brand-600 text-white"
+                }`}
+              >
+                CCM
+              </div>
+            )}
+            <div className="min-w-0">
+              <p className="font-bold text-lg">{sender.name}</p>
+              <p className={`text-xs ${modern ? "text-white/80" : "text-gray-500"}`}>{sender.email}</p>
+              <p className={`text-xs ${modern ? "text-white/80" : "text-gray-500"}`}>{sender.website}</p>
             </div>
           </div>
-          <div className="text-right">
-            <p className="text-2xl font-bold tracking-tight">INVOICE</p>
-            <p className={`text-sm font-mono ${modern ? "text-white/80" : "text-gray-600"}`}>#{invoiceNumber}</p>
-          </div>
+          <p className="text-2xl font-bold tracking-tight shrink-0">INVOICE</p>
         </div>
 
-        <div className="grid grid-cols-2 gap-6 px-10 pt-8 mb-8">
+        <div className="grid grid-cols-2 gap-6 px-10 pt-6">
+          {/* Bill To */}
           <div>
             <p className="text-[10px] font-bold text-gray-400 tracking-wide mb-1">BILL TO</p>
             <p className="font-semibold">{billTo.name || "—"}</p>
-            <p className="text-xs text-gray-500 whitespace-pre-line">{billTo.address}</p>
-            <p className="text-xs text-gray-500">{billTo.email}</p>
+            {/* break-words: a long single-line address (no manual newlines
+                typed by Finance) still wraps to fit this column instead of
+                overflowing straight across the page. */}
+            <p className="text-xs text-gray-500 whitespace-pre-line break-words max-w-[260px]">{billTo.address}</p>
+            <p className="text-xs text-gray-500 break-words max-w-[260px]">{billTo.email}</p>
           </div>
-          <div className="text-right space-y-1">
-            <p className="text-xs text-gray-500">
-              Invoice Date: <span className="font-semibold text-gray-800">{invoiceDate}</span>
-            </p>
-            <p className="text-xs text-gray-500">
-              Due Date: <span className="font-semibold text-gray-800">{dueDate}</span>
-            </p>
-            {customFields.map((f) => (
-              <p key={f.id} className="text-xs text-gray-500">
-                {f.label}: <span className="font-semibold text-gray-800">{f.value}</span>
-              </p>
-            ))}
+
+          {/* Invoice Summary card */}
+          <div className="rounded-xl border border-gray-200 overflow-hidden">
+            <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-200">
+              <p className="text-xs font-bold text-gray-700">Invoice Summary</p>
+            </div>
+            <div className="px-4 py-3 space-y-1.5 text-xs">
+              <div className="flex justify-between gap-3">
+                <span className="text-gray-500">Invoice Number</span>
+                <span className="font-semibold text-gray-800 font-mono">{invoiceNumber}</span>
+              </div>
+              <div className="flex justify-between gap-3">
+                <span className="text-gray-500">Invoice Date</span>
+                <span className="font-semibold text-gray-800">{invoiceDate}</span>
+              </div>
+              {paymentTermName && (
+                <div className="flex justify-between gap-3">
+                  <span className="text-gray-500">Payment Terms</span>
+                  <span className="font-semibold text-gray-800">{paymentTermName}</span>
+                </div>
+              )}
+              {customFields.map((f) => (
+                <div key={f.id} className="flex justify-between gap-3">
+                  <span className="text-gray-500">{f.label}</span>
+                  <span className="font-semibold text-gray-800">{f.value}</span>
+                </div>
+              ))}
+            </div>
+            <div className={`px-4 py-3 ${modern ? "bg-brand-50" : "bg-amber-50"}`}>
+              <p className="text-[10px] font-bold text-gray-500 tracking-wide">TOTAL DUE · Due on {dueDate}</p>
+              <p className="text-lg font-bold text-gray-900">{formatCurrency(total)}</p>
+            </div>
           </div>
         </div>
 
-        <div className="px-10 pb-10">
+        <div className="px-10 py-8">
           <table className="w-full text-sm mb-6">
             <thead>
               <tr className="border-b-2 border-gray-800 text-[10px] font-bold text-gray-500 tracking-wide">
                 <th className="text-left py-2">Description</th>
                 <th className="text-right py-2">Qty</th>
                 <th className="text-right py-2">Unit Price</th>
+                {hasDiscountColumn && <th className="text-right py-2">Discount %</th>}
                 <th className="text-right py-2">Amount</th>
                 {columns.map((c) => (
                   <th key={c.id} className="text-left py-2">
@@ -90,6 +156,9 @@ const InvoicePreview = forwardRef(
                   <td className="py-2">{r.description}</td>
                   <td className="py-2 text-right">{r.quantity}</td>
                   <td className="py-2 text-right">{formatCurrency(r.unitPrice)}</td>
+                  {hasDiscountColumn && (
+                    <td className="py-2 text-right">{r.discountPct ? `${r.discountPct}%` : "—"}</td>
+                  )}
                   <td className="py-2 text-right font-semibold">{formatCurrency(lineAmounts[i])}</td>
                   {columns.map((c) => (
                     <td key={c.id} className="py-2">
@@ -102,22 +171,24 @@ const InvoicePreview = forwardRef(
           </table>
 
           <div className="flex justify-end mb-8">
-            <div className="w-56 space-y-1">
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Subtotal</span>
-                <span className="font-semibold">{formatCurrency(lineSubtotal)}</span>
-              </div>
-              {Number(overallAdjustmentPct || 0) !== 0 && (
+            <div className="w-64 rounded-xl border border-gray-200 overflow-hidden">
+              <div className="px-4 py-3 space-y-1.5">
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">Adjustment ({overallAdjustmentPct}%)</span>
-                  <span className="font-semibold">{formatCurrency(adjustmentAmount)}</span>
+                  <span className="text-gray-500">Subtotal</span>
+                  <span className="font-semibold">{formatCurrency(lineSubtotal)}</span>
                 </div>
-              )}
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Tax ({taxPct}%)</span>
-                <span className="font-semibold">{formatCurrency(tax)}</span>
+                {Number(overallAdjustmentPct || 0) !== 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Adjustment ({overallAdjustmentPct}%)</span>
+                    <span className="font-semibold">{formatCurrency(adjustmentAmount)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Tax ({taxPct}%)</span>
+                  <span className="font-semibold">{formatCurrency(tax)}</span>
+                </div>
               </div>
-              <div className={`flex justify-between text-base border-t-2 pt-1 mt-1 ${modern ? "border-brand-600" : "border-gray-800"}`}>
+              <div className={`flex justify-between text-base px-4 py-3 ${modern ? "bg-brand-50" : "bg-amber-50"}`}>
                 <span className="font-bold">Total Due</span>
                 <span className="font-bold">{formatCurrency(total)}</span>
               </div>
@@ -142,6 +213,7 @@ InvoicePreview.propTypes = {
   invoiceNumber: PropTypes.string.isRequired,
   invoiceDate: PropTypes.string.isRequired,
   dueDate: PropTypes.string.isRequired,
+  paymentTermName: PropTypes.string,
   billTo: PropTypes.shape({
     name: PropTypes.string,
     address: PropTypes.string,
@@ -165,6 +237,7 @@ InvoicePreview.propTypes = {
   overallAdjustmentPct: PropTypes.number,
   notes: PropTypes.string,
   template: PropTypes.oneOf(["classic", "modern"]),
+  logo: PropTypes.oneOf(["maitsys", "ccm"]),
 };
 
 export default InvoicePreview;

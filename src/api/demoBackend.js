@@ -346,6 +346,7 @@ const CUSTOMERS = loadPersisted("customers", [
     billingAddress: "500 Boulevard Ave, Suite 300\nAustin, TX 78701, USA",
     logo: "maitsys-default",
     primaryContactEmail: "billing@contoso-demo.com",
+    discountPct: 7,
     active: true,
   },
   {
@@ -355,6 +356,7 @@ const CUSTOMERS = loadPersisted("customers", [
     billingAddress: "12 Meadowbrook Rd\nActon, MA 01720, USA",
     logo: "maitsys-default",
     primaryContactEmail: "accounts@actontamilschool.example",
+    discountPct: 0,
     active: true,
   },
   {
@@ -364,6 +366,7 @@ const CUSTOMERS = loadPersisted("customers", [
     billingAddress: "88 Harborview Plaza, Floor 4\nSeattle, WA 98101, USA",
     logo: "maitsys-default",
     primaryContactEmail: "ap@meridianhealth.example",
+    discountPct: 5,
     active: true,
   },
 ]);
@@ -822,6 +825,7 @@ export async function demoAdapter(config) {
       taxPct,
       overallAdjustmentPct,
       template,
+      logo,
     } = body(config);
     const customer = CUSTOMERS.find((c) => c.id === customerId);
     if (!customer) return fail("Customer not found", config, 404);
@@ -882,6 +886,7 @@ export async function demoAdapter(config) {
       customFields: customFields ?? [],
       columns: columns ?? [],
       template: template === "modern" ? "modern" : "classic",
+      logo: logo === "ccm" ? "ccm" : "maitsys",
       lines,
       ...totals,
       publishedDate: today,

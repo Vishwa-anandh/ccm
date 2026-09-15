@@ -80,11 +80,11 @@ export const getInvoice = async (id) => {
 
 export const buildInvoice = async ({
     customerId, invoiceDate, paymentTermId,
-    customFields, columns, rows, taxPct, overallAdjustmentPct, template,
+    customFields, columns, rows, taxPct, overallAdjustmentPct, template, logo,
 }) => {
     const { data } = await api.post('/billing/invoices/build', {
         customerId, invoiceDate, paymentTermId,
-        customFields, columns, rows, taxPct, overallAdjustmentPct, template,
+        customFields, columns, rows, taxPct, overallAdjustmentPct, template, logo,
     });
     return data;
 };

@@ -1,12 +1,24 @@
-import React, { useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, RefreshCw, AlertTriangle, FileStack, Eye, EyeOff } from "lucide-react";
+import {
+  ArrowLeft,
+  RefreshCw,
+  AlertTriangle,
+  FileStack,
+  Eye,
+  EyeOff,
+  CloudUpload,
+  FileWarning,
+  RotateCcw,
+} from "lucide-react";
 import { getCustomers, getPricingRules, getPaymentTerms, buildInvoice } from "../../api/billingApi";
+import { parseInvoiceFile } from "../../utils/invoiceFileParser";
 import { fireToast } from "../../components/ToastProvider";
 import CustomFieldsEditor from "../../components/invoice-builder/CustomFieldsEditor";
 import LineItemsEditor from "../../components/invoice-builder/LineItemsEditor";
 import InvoicePreview from "../../components/invoice-builder/InvoicePreview";
 import TemplatePicker from "../../components/invoice-builder/TemplatePicker";
+import LogoPicker from "../../components/invoice-builder/LogoPicker";
 import PctRuleInput from "../../components/billing/PctRuleInput";
 import SentEmailModal from "../../components/billing/SentEmailModal";
 
@@ -22,20 +34,19 @@ const addDaysIso = (dateStr, days) => {
 };
 
 /**
- * GenerateInvoicePage — /billing/generate ("Create Invoice"). Finance
- * builds a Customer Invoice by hand: pick a customer, then use the same
- * dynamic rows/columns/custom-fields editors as the standalone Invoice
- * Builder, with a live document preview and a choice of visual template. A
- * full page (not a modal) so the preview has real room, matching the
- * standalone /invoice-builder layout. There's no vendor data behind a
- * manually built invoice, so each line starts with 0% discount/adjustment;
- * Finance can still edit those inline afterward, exactly like an
- * auto-pulled invoice. Created invoices are immediately final and visible
- * — no Draft/Approved step.
+ * GenerateInvoicePage — /billing/generate ("Upload Invoice"). Finance
+ * uploads a vendor/customer invoice file (PDF or Excel/CSV); it's parsed
+ * client-side (src/utils/invoiceFileParser.js) into line items, which land
+ * on the same editable rows/columns/custom-fields UI as before — Finance
+ * reviews and fixes anything the parser got wrong (add/remove rows and
+ * columns) before saving. There's no blank/manual starting point anymore;
+ * uploading a file is the only way in, since parsing is never claimed to
+ * be perfect and every result is meant to be checked here first.
  */
 const GenerateInvoicePage = () => {
   const navigate = useNavigate();
   const previewRef = useRef(null);
+  const fileInputRef = useRef(null);
   const [customers, setCustomers] = useState([]);
   const [customerId, setCustomerId] = useState("");
   const [loadingCustomers, setLoadingCustomers] = useState(true);
@@ -46,18 +57,23 @@ const GenerateInvoicePage = () => {
   const [taxPct, setTaxPct] = useState(0);
   const [overallAdjustmentPct, setOverallAdjustmentPct] = useState(0);
   const [template, setTemplate] = useState("classic");
+  const [logo, setLogo] = useState("maitsys");
   const [customFields, setCustomFields] = useState([]);
   const [columns, setColumns] = useState([]);
-  const [rows, setRows] = useState([
-    { id: crypto.randomUUID(), description: "", quantity: 1, unitPrice: 0, discountPct: 0, extra: {} },
-  ]);
+  const [rows, setRows] = useState([]);
+  const [applyCustomerDiscount, setApplyCustomerDiscount] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [showPreview, setShowPreview] = useState(true);
   const [sentEmail, setSentEmail] = useState(null);
   const [createdInvoiceId, setCreatedInvoiceId] = useState(null);
 
-  React.useEffect(() => {
+  const [uploaded, setUploaded] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [dragging, setDragging] = useState(false);
+  const [uploadError, setUploadError] = useState("");
+
+  useEffect(() => {
     (async () => {
       try {
         const [c, rules, terms] = await Promise.all([getCustomers(), getPricingRules(), getPaymentTerms()]);
@@ -79,6 +95,51 @@ const GenerateInvoicePage = () => {
   const computedDueDate = addDaysIso(invoiceDate, selectedTerm?.days ?? 14);
   const canCreate = customerId && rows.some((r) => r.description.trim().length > 0);
 
+  // Re-applies whenever the checkbox is on and either the selected
+  // customer or its discount changes, so switching customers mid-review
+  // keeps every line in sync rather than leaving stale values behind.
+  useEffect(() => {
+    if (!applyCustomerDiscount || !customer) return;
+    setRows((prev) => prev.map((r) => ({ ...r, discountPct: customer.discountPct ?? 0 })));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [applyCustomerDiscount, customer?.id, customer?.discountPct]);
+
+  const handleFile = useCallback(
+    async (file) => {
+      if (!file) return;
+      setUploading(true);
+      setUploadError("");
+      try {
+        const parsed = await parseInvoiceFile(file);
+        setRows(parsed.rows);
+        setColumns(parsed.columns);
+        if (parsed.meta.invoiceDateGuess) setInvoiceDate(parsed.meta.invoiceDateGuess);
+        if (parsed.meta.customerNameGuess) {
+          const guess = parsed.meta.customerNameGuess.toLowerCase();
+          const match = customers.find(
+            (c) => c.name.toLowerCase().includes(guess) || guess.includes(c.name.toLowerCase()),
+          );
+          if (match) setCustomerId(match.id);
+        }
+        setUploaded(true);
+        fireToast(`Parsed ${parsed.rows.length} line item${parsed.rows.length === 1 ? "" : "s"} — review before saving.`, "success");
+      } catch (err) {
+        setUploadError(err.message || "Couldn't read that file.");
+      } finally {
+        setUploading(false);
+      }
+    },
+    [customers],
+  );
+
+  const handleStartOver = () => {
+    setUploaded(false);
+    setRows([]);
+    setColumns([]);
+    setCustomFields([]);
+    setUploadError("");
+  };
+
   const handleCreate = async () => {
     if (!canCreate) return;
     setBusy(true);
@@ -94,6 +155,7 @@ const GenerateInvoicePage = () => {
         taxPct,
         overallAdjustmentPct,
         template,
+        logo,
       });
       fireToast(`Invoice ${invoice.invoiceNumber} created — emailed to ${email.to}`, "success");
       // Stay on this page with the "sent email" preview open (real link,
@@ -127,30 +189,40 @@ const GenerateInvoicePage = () => {
             <span className="p-2 bg-brand-50 dark:bg-brand-900/20 rounded-xl">
               <FileStack className="w-5 h-5 text-brand-600" />
             </span>
-            Create Invoice
+            Upload Invoice
           </h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 ml-11">
-            Add line items, columns, and custom fields by hand — the preview updates live.
+            {uploaded
+              ? "Review what was parsed below — add, edit, or delete anything before saving."
+              : "Upload a PDF or Excel/CSV invoice — it's parsed into editable line items."}
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setShowPreview((v) => !v)}
-            className="flex items-center gap-1.5 text-xs font-bold text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700"
-            title={showPreview ? "Hide the invoice preview" : "Show the invoice preview"}
-          >
-            {showPreview ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-            {showPreview ? "Hide Preview" : "Show Preview"}
-          </button>
-          <button
-            onClick={handleCreate}
-            disabled={busy || !canCreate}
-            className="btn-primary disabled:opacity-50"
-          >
-            {busy && <RefreshCw className="w-4 h-4 animate-spin" />}
-            Create Invoice
-          </button>
-        </div>
+        {uploaded && (
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleStartOver}
+              className="flex items-center gap-1.5 text-xs font-bold text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700"
+            >
+              <RotateCcw className="w-3.5 h-3.5" /> Upload a Different File
+            </button>
+            <button
+              onClick={() => setShowPreview((v) => !v)}
+              className="flex items-center gap-1.5 text-xs font-bold text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700"
+              title={showPreview ? "Hide the invoice preview" : "Show the invoice preview"}
+            >
+              {showPreview ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+              {showPreview ? "Hide Preview" : "Show Preview"}
+            </button>
+            <button
+              onClick={handleCreate}
+              disabled={busy || !canCreate}
+              className="btn-primary disabled:opacity-50"
+            >
+              {busy && <RefreshCw className="w-4 h-4 animate-spin" />}
+              Save Invoice
+            </button>
+          </div>
+        )}
       </div>
 
       {error && (
@@ -160,132 +232,206 @@ const GenerateInvoicePage = () => {
         </div>
       )}
 
-      <div className={`grid grid-cols-1 gap-6 ${showPreview ? "lg:grid-cols-2" : ""}`}>
-        <div className="space-y-5 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-5 shadow-card">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-gray-500 mb-1">Customer</label>
-              {loadingCustomers ? (
-                <div className="skeleton rounded-xl h-10 w-full" />
-              ) : (
-                <select
-                  value={customerId}
-                  onChange={(e) => setCustomerId(e.target.value)}
-                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm font-semibold"
-                >
-                  {customers.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-gray-500 mb-1">Template</p>
-              <TemplatePicker value={template} onChange={setTemplate} compact />
-            </div>
-          </div>
-
-          <p className="text-[10px] text-gray-400 -mt-2">
-            Pick a Pricing Rule or type a custom % for each line's Discount below. Maitsys Adjustment % is set afterward, right on the created invoice.
-          </p>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-gray-500 mb-1">Invoice Date</label>
-              <input
-                type="date"
-                value={invoiceDate}
-                onChange={(e) => setInvoiceDate(e.target.value)}
-                className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-gray-500 mb-1">Payment Term</label>
-              {paymentTerms.length === 0 ? (
-                <p className="text-xs text-gray-400 bg-gray-50 dark:bg-gray-800 rounded-lg px-3 py-2.5">
-                  No payment terms yet — add one in the Payment Terms tab.
-                </p>
-              ) : (
-                <select
-                  value={paymentTermId}
-                  onChange={(e) => setPaymentTermId(e.target.value)}
-                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm"
-                >
-                  {paymentTerms.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.name} ({t.days} days)
-                    </option>
-                  ))}
-                </select>
-              )}
-            </div>
-          </div>
-          <p className="text-[10px] text-gray-400 -mt-2">
-            Due Date: <span className="font-semibold text-gray-600 dark:text-gray-300">{computedDueDate}</span> — Invoice Date + the selected term's days.
-          </p>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="max-w-[140px]">
-              <label className="block text-xs font-semibold text-gray-500 mb-1">Tax %</label>
-              <input
-                type="number"
-                min="0"
-                step="0.1"
-                value={taxPct}
-                onChange={(e) => setTaxPct(Number(e.target.value))}
-                className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-gray-500 mb-1">Overall Adjustment %</label>
-              <PctRuleInput value={overallAdjustmentPct} onChange={setOverallAdjustmentPct} rules={pricingRules} />
-            </div>
-          </div>
-
-          <div>
-            <p className="text-xs font-bold text-gray-500 dark:text-gray-400 mb-2 tracking-wide">Custom Fields</p>
-            <CustomFieldsEditor fields={customFields} onChange={setCustomFields} />
-          </div>
-
-          <div>
-            <p className="text-xs font-bold text-gray-500 dark:text-gray-400 mb-2 tracking-wide">Line Items</p>
-            <LineItemsEditor
-              columns={columns}
-              rows={rows}
-              onColumnsChange={setColumns}
-              onRowsChange={setRows}
-              pricingRules={pricingRules}
+      {!uploaded && (
+        <div className="max-w-xl">
+          <div
+            onDragOver={(e) => {
+              e.preventDefault();
+              setDragging(true);
+            }}
+            onDragLeave={() => setDragging(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setDragging(false);
+              handleFile(e.dataTransfer.files?.[0]);
+            }}
+            onClick={() => !uploading && fileInputRef.current?.click()}
+            className={`flex flex-col items-center justify-center rounded-2xl border-2 border-dashed py-14 transition-all duration-200 bg-white dark:bg-gray-900 ${
+              dragging
+                ? "border-brand-500 cursor-pointer"
+                : "border-gray-200 dark:border-gray-700 hover:border-brand-300 dark:hover:border-brand-700 cursor-pointer"
+            }`}
+          >
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".pdf,.xlsx,.xls,.csv"
+              className="hidden"
+              onChange={(e) => handleFile(e.target.files?.[0])}
             />
+            {uploading ? (
+              <>
+                <RefreshCw className="w-7 h-7 text-brand-500 animate-spin mb-3" />
+                <p className="text-sm font-semibold text-gray-500">Reading invoice…</p>
+                <p className="text-xs text-gray-400 mt-1">This may take a few seconds</p>
+              </>
+            ) : (
+              <>
+                <CloudUpload className="w-8 h-8 text-brand-500 mb-3" />
+                <p className="text-sm font-bold text-gray-700 dark:text-gray-300">Drop your invoice here</p>
+                <p className="text-xs text-gray-400 mt-1">
+                  or <span className="text-brand-600 dark:text-brand-400 font-semibold">browse to upload</span>
+                </p>
+                <p className="text-[10px] text-gray-400 mt-3">Accepts PDF, .xlsx, .xls, or .csv</p>
+              </>
+            )}
           </div>
+          {uploadError && (
+            <div className="flex items-start gap-2 text-xs text-red-600 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-xl px-3 py-2.5 mt-3">
+              <FileWarning className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+              <span>{uploadError}</span>
+            </div>
+          )}
         </div>
+      )}
 
-        {showPreview && (
-          <div className="bg-gray-100 dark:bg-gray-950 rounded-2xl p-4 overflow-auto lg:sticky lg:top-4 lg:self-start lg:max-h-[calc(100vh-6rem)]">
-            <div className="shadow-lg mx-auto" style={{ maxWidth: 640 }}>
-              <InvoicePreview
-                ref={previewRef}
-                invoiceNumber="PREVIEW"
-                invoiceDate={invoiceDate}
-                dueDate={computedDueDate}
-                billTo={{
-                  name: customer?.name ?? "",
-                  address: customer?.billingAddress ?? "",
-                  email: customer?.primaryContactEmail ?? "",
-                }}
-                customFields={customFields}
+      {uploaded && (
+        <div className={`grid grid-cols-1 gap-6 ${showPreview ? "lg:grid-cols-2" : ""}`}>
+          <div className="space-y-5 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-5 shadow-card">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 mb-1">Customer</label>
+                {loadingCustomers ? (
+                  <div className="skeleton rounded-xl h-10 w-full" />
+                ) : (
+                  <select
+                    value={customerId}
+                    onChange={(e) => setCustomerId(e.target.value)}
+                    className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm font-semibold"
+                  >
+                    {customers.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-gray-500 mb-1">Template</p>
+                <TemplatePicker value={template} onChange={setTemplate} compact />
+              </div>
+            </div>
+
+            <div>
+              <p className="text-xs font-semibold text-gray-500 mb-1">Logo</p>
+              <LogoPicker value={logo} onChange={setLogo} />
+            </div>
+
+            {customer && customer.discountPct > 0 && (
+              <label className="flex items-center gap-2 text-xs font-semibold text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-800 rounded-xl px-3 py-2.5 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={applyCustomerDiscount}
+                  onChange={(e) => setApplyCustomerDiscount(e.target.checked)}
+                  className="rounded border-gray-300 text-brand-600 focus:ring-brand-500"
+                />
+                Apply {customer.name}&apos;s {customer.discountPct}% discount to all line items
+              </label>
+            )}
+
+            <p className="text-[10px] text-gray-400 -mt-2">
+              Pick a Pricing Rule or type a custom % for each line's Discount below. Maitsys Adjustment % is set afterward, right on the created invoice.
+            </p>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 mb-1">Invoice Date</label>
+                <input
+                  type="date"
+                  value={invoiceDate}
+                  onChange={(e) => setInvoiceDate(e.target.value)}
+                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 mb-1">Payment Term</label>
+                {paymentTerms.length === 0 ? (
+                  <p className="text-xs text-gray-400 bg-gray-50 dark:bg-gray-800 rounded-lg px-3 py-2.5">
+                    No payment terms yet — add one in the Payment Terms tab.
+                  </p>
+                ) : (
+                  <select
+                    value={paymentTermId}
+                    onChange={(e) => setPaymentTermId(e.target.value)}
+                    className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm"
+                  >
+                    {paymentTerms.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name} ({t.days} days)
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+            </div>
+            <p className="text-[10px] text-gray-400 -mt-2">
+              Due Date: <span className="font-semibold text-gray-600 dark:text-gray-300">{computedDueDate}</span> — Invoice Date + the selected term's days.
+            </p>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="max-w-[140px]">
+                <label className="block text-xs font-semibold text-gray-500 mb-1">Tax %</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.1"
+                  value={taxPct}
+                  onChange={(e) => setTaxPct(Number(e.target.value))}
+                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 mb-1">Overall Adjustment %</label>
+                <PctRuleInput value={overallAdjustmentPct} onChange={setOverallAdjustmentPct} rules={pricingRules} />
+              </div>
+            </div>
+
+            <div>
+              <p className="text-xs font-bold text-gray-500 dark:text-gray-400 mb-2 tracking-wide">Custom Fields</p>
+              <CustomFieldsEditor fields={customFields} onChange={setCustomFields} />
+            </div>
+
+            <div>
+              <p className="text-xs font-bold text-gray-500 dark:text-gray-400 mb-2 tracking-wide">Line Items</p>
+              <LineItemsEditor
                 columns={columns}
                 rows={rows}
-                taxPct={taxPct}
-                overallAdjustmentPct={overallAdjustmentPct}
-                notes=""
-                template={template}
+                onColumnsChange={setColumns}
+                onRowsChange={setRows}
+                pricingRules={pricingRules}
               />
             </div>
           </div>
-        )}
-      </div>
+
+          {showPreview && (
+            <div className="bg-gray-100 dark:bg-gray-950 rounded-2xl p-4 overflow-auto lg:sticky lg:top-4 lg:self-start lg:max-h-[calc(100vh-6rem)]">
+              <div className="shadow-lg mx-auto" style={{ maxWidth: 640 }}>
+                <InvoicePreview
+                  ref={previewRef}
+                  invoiceNumber="PREVIEW"
+                  invoiceDate={invoiceDate}
+                  dueDate={computedDueDate}
+                  paymentTermName={selectedTerm?.name}
+                  billTo={{
+                    name: customer?.name ?? "",
+                    address: customer?.billingAddress ?? "",
+                    email: customer?.primaryContactEmail ?? "",
+                  }}
+                  customFields={customFields}
+                  columns={columns}
+                  rows={rows}
+                  taxPct={taxPct}
+                  overallAdjustmentPct={overallAdjustmentPct}
+                  notes=""
+                  template={template}
+                  logo={logo}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       <SentEmailModal email={sentEmail} onClose={handleCloseSentEmail} />
     </div>

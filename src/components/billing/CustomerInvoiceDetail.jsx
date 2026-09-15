@@ -12,6 +12,7 @@ import {
   Wallet,
   RefreshCw,
   LayoutTemplate,
+  Image,
 } from "lucide-react";
 import { formatCurrency } from "../../utils/formatters";
 
@@ -135,6 +136,14 @@ const CustomerInvoiceDetail = ({ invoice, customer, allowPayment = false, onPayN
                 icon={LayoutTemplate}
                 label="Template"
                 value={invoice.template === "modern" ? "Modern" : "Classic"}
+                accent="gray"
+              />
+            )}
+            {invoice.logo && (
+              <MetaChip
+                icon={Image}
+                label="Logo"
+                value={invoice.logo === "ccm" ? "CCM" : "Maitsys"}
                 accent="gray"
               />
             )}

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Plus, Inbox, ArrowLeft, Mail, Search } from "lucide-react";
+import { Upload, Inbox, ArrowLeft, Mail, Search } from "lucide-react";
 import { getCustomers, getInvoices, getInvoiceEmail } from "../../api/billingApi";
 import { formatCurrency } from "../../utils/formatters";
 import CustomerInvoiceDetail, { StatusPill } from "../../components/billing/CustomerInvoiceDetail";
@@ -10,12 +10,13 @@ import Dropdown from "../../components/Dropdown";
 
 /**
  * Invoices — Finance's full list across every customer, view-only.
- * Creating an invoice (GenerateInvoicePage) is where Discount %/
- * Adjustment %/Overall Adjustment % get set, and it shows up here
- * immediately — no Draft/Approved holding state, no further editing, no
- * Approve/Publish step. It's already visible on the matching customer's
- * own Billing view with a Pay Now action (which only the customer gets —
- * Finance just views the invoice here).
+ * Uploading an invoice file (GenerateInvoicePage — PDF/Excel/CSV, parsed
+ * into editable line items) is where Discount %/Adjustment %/Overall
+ * Adjustment % get set, and it shows up here immediately — no Draft/
+ * Approved holding state, no further editing, no Approve/Publish step.
+ * It's already visible on the matching customer's own Billing view with a
+ * Pay Now action (which only the customer gets — Finance just views the
+ * invoice here).
  */
 const InvoicesTab = () => {
   const navigate = useNavigate();
@@ -97,7 +98,7 @@ const InvoicesTab = () => {
           50/50 split. */}
       <div className={`space-y-3 ${selected ? "hidden lg:block" : ""}`}>
         <button onClick={() => navigate("/billing/generate")} className="btn-primary w-full justify-center">
-          <Plus className="w-4 h-4" /> Create Invoice
+          <Upload className="w-4 h-4" /> Upload Invoice
         </button>
 
         {loading && (
@@ -113,7 +114,7 @@ const InvoicesTab = () => {
               <Inbox className="w-8 h-8" />
             </div>
             <p className="text-sm font-bold text-gray-900 dark:text-white">No invoices yet</p>
-            <p className="text-xs text-gray-400 mt-1">Click Create Invoice to get started.</p>
+            <p className="text-xs text-gray-400 mt-1">Click Upload Invoice to get started.</p>
           </div>
         )}
 

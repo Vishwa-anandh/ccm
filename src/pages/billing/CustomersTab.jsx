@@ -4,7 +4,7 @@ import { getCustomers, createCustomer, updateCustomer, deleteCustomer } from "..
 import { fireToast } from "../../components/ToastProvider";
 import { useConfirm } from "../../components/ConfirmDialog";
 
-const EMPTY_FORM = { name: "", billingAddress: "", primaryContactEmail: "" };
+const EMPTY_FORM = { name: "", billingAddress: "", primaryContactEmail: "", discountPct: 0 };
 
 /**
  * Customers — Finance's list of billable customer accounts (doc §7.1).
@@ -43,6 +43,7 @@ const CustomersTab = () => {
       name: c.name,
       billingAddress: c.billingAddress,
       primaryContactEmail: c.primaryContactEmail ?? "",
+      discountPct: c.discountPct ?? 0,
     });
   };
 
@@ -140,6 +141,18 @@ const CustomersTab = () => {
               placeholder="billing@customer.com"
             />
           </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 mb-1">Discount %</label>
+            <input
+              type="number" step="0.1" min="0"
+              value={form.discountPct}
+              onChange={(e) => setForm({ ...form, discountPct: Number(e.target.value) })}
+              className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm"
+            />
+            <p className="text-[10px] text-gray-400 mt-1">
+              Applied to this customer's line items when Finance checks "Apply customer discount" in Create Invoice.
+            </p>
+          </div>
           <div className="flex gap-2">
             <button type="submit" disabled={saving} className="btn-primary flex-1 justify-center disabled:opacity-50">
               {editingId ? "Save Changes" : (<><Plus className="w-4 h-4" /> Add Customer</>)}
@@ -184,11 +197,18 @@ const CustomersTab = () => {
                       <Mail className="w-3 h-3" /> {c.primaryContactEmail}
                     </p>
                   )}
-                  {c.orgId && (
-                    <p className="text-[10px] text-brand-500 font-semibold mt-1.5">
-                      Linked to CCM org — invoices appear in their existing login
-                    </p>
-                  )}
+                  <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                    {c.orgId && (
+                      <p className="text-[10px] text-brand-500 font-semibold">
+                        Linked to CCM org — invoices appear in their existing login
+                      </p>
+                    )}
+                    {c.discountPct > 0 && (
+                      <span className="badge border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30">
+                        {c.discountPct}% discount
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
               <div className="flex items-center gap-2 shrink-0">
