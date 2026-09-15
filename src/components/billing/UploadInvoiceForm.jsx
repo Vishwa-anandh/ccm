@@ -13,6 +13,8 @@ import {
 } from "lucide-react";
 import { getCustomers, getPaymentTerms, buildInvoice } from "../../api/billingApi";
 import { parseInvoiceFile, mergeParsedInvoiceResults } from "../../utils/invoiceFileParser";
+import { round2 } from "../../utils/pricingCalc";
+import { formatCurrency } from "../../utils/formatters";
 import { fireToast } from "../../components/ToastProvider";
 import CustomFieldsEditor from "../invoice-builder/CustomFieldsEditor";
 import LineItemsEditor from "../invoice-builder/LineItemsEditor";
@@ -112,6 +114,19 @@ const UploadInvoiceForm = ({ onClose, onCreated, initialParsed = null }) => {
   // reading the invoice is how many days they have to pay.
   const paymentTermLabel = selectedTerm ? `${selectedTerm.days} day${selectedTerm.days === 1 ? "" : "s"}` : null;
   const canCreate = customerId && rows.some((r) => r.description.trim().length > 0);
+
+  // Same totals math as InvoicePreview/SendInvoiceConfirmModal, computed
+  // here too so a running Summary can sit at the bottom of the form
+  // itself — visible even with the preview pane hidden or off-screen on
+  // a narrower window, not just inside the (optional) document preview.
+  const lineAmounts = rows.map((r) =>
+    round2(Number(r.quantity || 0) * Number(r.unitPrice || 0) * (1 - Number(r.discountPct || 0) / 100)),
+  );
+  const lineSubtotal = round2(lineAmounts.reduce((s, a) => s + a, 0));
+  const adjustmentAmount = round2(lineSubtotal * (Number(overallAdjustmentPct || 0) / 100));
+  const subtotalAfterAdjustment = round2(lineSubtotal + adjustmentAmount);
+  const taxAmount = round2(subtotalAfterAdjustment * (Number(taxPct || 0) / 100));
+  const totalDue = round2(subtotalAfterAdjustment + taxAmount);
 
   // Each line's Discount checkbox applies customer.discountPct — the
   // discount is applied by default (every row starts checked) whenever the
@@ -526,6 +541,35 @@ const UploadInvoiceForm = ({ onClose, onCreated, initialParsed = null }) => {
                 discountAvailable
                 customerDiscountPct={customer?.discountPct ?? 0}
               />
+            </div>
+
+            {/* Running totals — always visible at the bottom of the form
+                itself, not just inside the (optional, toggle-able)
+                document preview beside it. */}
+            <div className="rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+              <div className="px-4 py-2.5 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+                <p className="text-xs font-bold text-gray-700 dark:text-gray-300">Summary</p>
+              </div>
+              <div className="px-4 py-3 space-y-1.5 text-xs">
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Line Items Subtotal</span>
+                  <span className="font-semibold text-gray-800 dark:text-gray-200">{formatCurrency(lineSubtotal)}</span>
+                </div>
+                {Number(overallAdjustmentPct || 0) !== 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Summary Adjustment ({overallAdjustmentPct}%)</span>
+                    <span className="font-semibold text-gray-800 dark:text-gray-200">{formatCurrency(adjustmentAmount)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Tax ({taxPct}%)</span>
+                  <span className="font-semibold text-gray-800 dark:text-gray-200">{formatCurrency(taxAmount)}</span>
+                </div>
+              </div>
+              <div className="flex justify-between items-center px-4 py-3 bg-amber-50 dark:bg-amber-950/20">
+                <span className="text-sm font-bold text-gray-900 dark:text-white">Total Due</span>
+                <span className="text-base font-bold text-gray-900 dark:text-white">{formatCurrency(totalDue)}</span>
+              </div>
             </div>
           </div>
 
