@@ -9,8 +9,10 @@ import { Mail, X, ExternalLink } from "lucide-react";
  * customer would receive — it's a genuine <a> to the public,
  * unauthenticated /invoice/:token page (PublicInvoicePage.jsx).
  *
- * Same overlay/panel recipe as ConfirmDialog.jsx (fixed inset-0 blurred
- * backdrop, rounded-2xl white/gray-900 panel) for visual consistency.
+ * Slides in from the right edge as a full-height drawer (fixed inset-0
+ * blurred backdrop, panel flush against the right edge) rather than
+ * ConfirmDialog.jsx's centered pattern — an email preview reads more
+ * like a side panel (an inbox item) than a yes/no prompt.
  */
 const SentEmailModal = ({ email, onClose }) => {
   useEffect(() => {
@@ -26,13 +28,13 @@ const SentEmailModal = ({ email, onClose }) => {
 
   return (
     <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+      className="fixed inset-0 z-[9999] flex justify-end"
       style={{ background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)" }}
       onClick={onClose}
     >
       <div
-        className="w-full max-w-lg bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 overflow-hidden"
-        style={{ boxShadow: "0 24px 64px rgba(0,0,0,0.25)" }}
+        className="animate-drawer-in h-full w-full max-w-md bg-white dark:bg-gray-900 border-l border-gray-100 dark:border-gray-800 overflow-y-auto"
+        style={{ boxShadow: "-24px 0 64px rgba(0,0,0,0.25)" }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between px-5 pt-5 pb-4">

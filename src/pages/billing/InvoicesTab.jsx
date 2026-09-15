@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Inbox, ArrowLeft, Mail, Search } from "lucide-react";
+import { Inbox, ArrowLeft, Mail, Search, FileText, LayoutList } from "lucide-react";
 import { getCustomers, getInvoices, getInvoiceEmail } from "../../api/billingApi";
 import { formatCurrency } from "../../utils/formatters";
 import CustomerInvoiceDetail, { StatusPill } from "../../components/billing/CustomerInvoiceDetail";
+import InvoiceDocument from "../../components/billing/InvoiceDocument";
 import SentEmailModal from "../../components/billing/SentEmailModal";
 import { fireToast } from "../../components/ToastProvider";
 import Dropdown from "../../components/Dropdown";
@@ -29,6 +30,12 @@ const InvoicesTab = () => {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [customerFilter, setCustomerFilter] = useState("all");
+  // Toggles the detail pane between the app's own data summary
+  // (CustomerInvoiceDetail — MetaChips/KPIs/line-item table) and the
+  // actual branded document that was emailed (InvoiceDocument, which
+  // reuses InvoicePreview). Resets to the summary on every new selection
+  // so re-opening the list doesn't leave Finance stuck on the document view.
+  const [showDocument, setShowDocument] = useState(false);
 
   const customerFor = (id) => customers.find((c) => c.id === id);
 
@@ -176,7 +183,10 @@ const InvoicesTab = () => {
                   {filteredInvoices.map((inv) => (
                   <tr
                     key={inv.id}
-                    onClick={() => setSelectedId(inv.id)}
+                    onClick={() => {
+                      setSelectedId(inv.id);
+                      setShowDocument(false);
+                    }}
                     className={`cursor-pointer transition-colors ${
                       selectedId === inv.id
                         ? "bg-brand-50/60 dark:bg-brand-950/20"
@@ -223,17 +233,33 @@ const InvoicesTab = () => {
                 <ArrowLeft className="w-4 h-4" /> Back to list
               </button>
               <button
-                onClick={handleViewEmail}
+                onClick={() => setShowDocument((v) => !v)}
                 className="ml-auto flex items-center gap-1.5 text-xs font-bold text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700"
+                title={showDocument ? "Show the data summary instead" : "Show the actual invoice that was emailed"}
+              >
+                {showDocument ? <LayoutList className="w-3.5 h-3.5" /> : <FileText className="w-3.5 h-3.5" />}
+                {showDocument ? "View Summary" : "View Invoice"}
+              </button>
+              <button
+                onClick={handleViewEmail}
+                className="flex items-center gap-1.5 text-xs font-bold text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700"
               >
                 <Mail className="w-3.5 h-3.5" /> View Sent Email
               </button>
             </div>
-            <CustomerInvoiceDetail
-              key={selected.id}
-              invoice={selected}
-              customer={customerFor(selected.customerId)}
-            />
+            {showDocument ? (
+              <div className="bg-gray-100 dark:bg-gray-950 rounded-2xl p-4 overflow-auto">
+                <div className="shadow-lg mx-auto" style={{ maxWidth: 640 }}>
+                  <InvoiceDocument key={selected.id} invoice={selected} customer={customerFor(selected.customerId)} />
+                </div>
+              </div>
+            ) : (
+              <CustomerInvoiceDetail
+                key={selected.id}
+                invoice={selected}
+                customer={customerFor(selected.customerId)}
+              />
+            )}
           </div>
         ) : (
           <div className="flex items-center justify-center h-full min-h-[300px] text-sm text-gray-400">

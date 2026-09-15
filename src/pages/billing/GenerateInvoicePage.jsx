@@ -102,16 +102,16 @@ const GenerateInvoicePage = () => {
   const paymentTermLabel = selectedTerm ? `${selectedTerm.days} day${selectedTerm.days === 1 ? "" : "s"}` : null;
   const canCreate = customerId && rows.some((r) => r.description.trim().length > 0);
 
-  // Each line's Discount checkbox applies customer.discountPct — if
-  // Finance switches customers after already checking some rows, those
-  // rows should track the new customer's % rather than keep the old
-  // customer's stale number silently baked in. Unchecked rows (0%) are
-  // untouched either way.
+  // Each line's Discount checkbox applies customer.discountPct — the
+  // discount is applied by default (every row starts checked) whenever the
+  // selected customer has one set; Finance unchecks specific rows to
+  // exclude them. Switching to a different customer resets every row to
+  // that customer's own % (0 clears it), rather than only touching rows
+  // that happened to already be checked — the default should always
+  // reflect whichever customer is currently selected.
   useEffect(() => {
     if (!customer) return;
-    setRows((prev) =>
-      prev.map((r) => (Number(r.discountPct || 0) > 0 ? { ...r, discountPct: customer.discountPct ?? 0 } : r)),
-    );
+    setRows((prev) => prev.map((r) => ({ ...r, discountPct: customer.discountPct ?? 0 })));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [customer?.id, customer?.discountPct]);
 
@@ -122,16 +122,24 @@ const GenerateInvoicePage = () => {
       setUploadError("");
       try {
         const parsed = await parseInvoiceFile(file);
-        setRows(parsed.rows);
-        setColumns(parsed.columns);
-        if (parsed.meta.invoiceDateGuess) setInvoiceDate(parsed.meta.invoiceDateGuess);
+        let resolvedCustomer = customer;
         if (parsed.meta.customerNameGuess) {
           const guess = parsed.meta.customerNameGuess.toLowerCase();
           const match = customers.find(
             (c) => c.name.toLowerCase().includes(guess) || guess.includes(c.name.toLowerCase()),
           );
-          if (match) setCustomerId(match.id);
+          if (match) {
+            setCustomerId(match.id);
+            resolvedCustomer = match;
+          }
         }
+        // Newly parsed rows default to the resolved customer's Discount %
+        // applied (checked) — matches the effect above, which only re-runs
+        // on a customer change, not on every new set of parsed rows.
+        const discountPct = resolvedCustomer?.discountPct ?? 0;
+        setRows(parsed.rows.map((r) => ({ ...r, discountPct })));
+        setColumns(parsed.columns);
+        if (parsed.meta.invoiceDateGuess) setInvoiceDate(parsed.meta.invoiceDateGuess);
         setUploaded(true);
         fireToast(`Parsed ${parsed.rows.length} line item${parsed.rows.length === 1 ? "" : "s"} — review before saving.`, "success");
       } catch (err) {
@@ -140,7 +148,7 @@ const GenerateInvoicePage = () => {
         setUploading(false);
       }
     },
-    [customers],
+    [customers, customer],
   );
 
   const handleStartOver = () => {

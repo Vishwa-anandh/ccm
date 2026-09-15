@@ -47,9 +47,12 @@ const LineItemsEditor = ({ columns, rows, onColumnsChange, onRowsChange, discoun
   };
 
   const addRow = () => {
+    // Defaults to the customer's Discount % applied (checked), matching
+    // every other row, rather than starting unchecked and looking
+    // inconsistent next to rows that already have it applied.
     onRowsChange([
       ...rows,
-      { id: crypto.randomUUID(), description: "", quantity: 1, unitPrice: 0, discountPct: 0, extra: {} },
+      { id: crypto.randomUUID(), description: "", quantity: 1, unitPrice: 0, discountPct: customerDiscountPct, extra: {} },
     ]);
   };
 

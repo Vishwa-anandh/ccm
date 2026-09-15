@@ -845,6 +845,11 @@ export async function demoAdapter(config) {
       // editable name ("Net 30") — survives the term being edited/deleted
       // later, and reads as what actually matters to the customer.
       paymentTermName: term ? `${term.days} day${term.days === 1 ? "" : "s"}` : null,
+      // Stored alongside the computed `tax` amount so the saved invoice can
+      // be re-rendered later as the actual branded document (InvoiceDocument
+      // — the Billing page's "View Invoice" toggle) without having to back
+      // out a % from a rounded dollar amount.
+      taxPct: Number(taxPct) || 0,
       sourceVendorInvoiceIds: [], // manually built — not linked to any ingested vendor invoice
       // No Draft/Approved gate — a created invoice is immediately final and
       // visible (both here in the Finance console and on the matching
