@@ -250,3 +250,47 @@ export async function parseInvoiceFile(file) {
   if (["xlsx", "xls", "csv"].includes(ext)) return parseSpreadsheet(file);
   throw new Error("Unsupported file type — upload a PDF, .xlsx, .xls, or .csv file.");
 }
+
+/**
+ * mergeParsedInvoiceResults — combines N parseInvoiceFile() results (one
+ * per uploaded file) into a single {columns, rows, meta}, so multiple
+ * invoices uploaded together land on one combined, editable line-item
+ * list rather than requiring one at a time. Columns are matched across
+ * files by label (case-insensitive) rather than kept separate per file —
+ * two files both carrying a "Notes" column fold into one shared column,
+ * not duplicate it once per file. Every row keeps its own genId()'d id
+ * from the parser (already unique), so rows from different files never
+ * collide. `meta` takes the first non-null guess found across the files
+ * for each field.
+ */
+export function mergeParsedInvoiceResults(parsedList) {
+  const columns = [];
+  const sharedIdByLabel = new Map();
+  const rows = [];
+  const meta = { customerNameGuess: null, invoiceDateGuess: null, dueDateGuess: null, totalGuess: null };
+
+  for (const parsed of parsedList) {
+    const idMap = new Map();
+    for (const col of parsed.columns) {
+      const key = col.label.trim().toLowerCase();
+      let sharedId = sharedIdByLabel.get(key);
+      if (!sharedId) {
+        sharedId = col.id;
+        sharedIdByLabel.set(key, sharedId);
+        columns.push({ id: sharedId, label: col.label });
+      }
+      idMap.set(col.id, sharedId);
+    }
+    for (const row of parsed.rows) {
+      const extra = {};
+      for (const [colId, val] of Object.entries(row.extra ?? {})) {
+        extra[idMap.get(colId) ?? colId] = val;
+      }
+      rows.push({ ...row, extra });
+    }
+    for (const key of ["customerNameGuess", "invoiceDateGuess", "dueDateGuess", "totalGuess"]) {
+      if (!meta[key] && parsed.meta[key]) meta[key] = parsed.meta[key];
+    }
+  }
+  return { columns, rows, meta };
+}

@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useState } from "react";
 import { CalendarClock, Receipt as ReceiptIcon, Upload } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import PaymentTermsTab from "./PaymentTermsTab";
@@ -23,26 +23,23 @@ const TABS = [
  * destination (/billing/customers, CustomersPage.jsx) — it's a distinct
  * workflow from invoicing, not a tab of it.
  *
- * "Upload Invoice" opens UploadInvoiceModal as a popup rather than
- * navigating to /billing/generate — Finance stays on this page, and once
- * an invoice is created the modal closes and InvoicesTab (held via ref)
- * refreshes and selects it in place, no route change needed. The
- * standalone /billing/generate route (GenerateInvoicePage.jsx) still
- * exists for a direct link.
+ * "Upload Invoice" opens UploadInvoiceModal — a small popup that only
+ * picks/parses the file(s). Once parsed, it navigates to /billing/generate
+ * (the full-page invoice builder, GenerateInvoicePage.jsx) with the
+ * parsed data in hand; the builder itself always lives on that page, not
+ * inside the popup. Coming back from there (after Send, or Back to
+ * Billing) is a normal route navigation, so this component remounts and
+ * InvoicesTab picks up the newly created invoice the same way it always
+ * has (via location.state.selectedInvoiceId).
  */
 const BillingPage = () => {
   const { user } = useAuth();
   const isPrivileged = user?.role === "admin" || user?.role === "owner";
   const [activeTab, setActiveTab] = useState("invoices");
   const [showUploadModal, setShowUploadModal] = useState(false);
-  const invoicesTabRef = useRef(null);
-
-  const handleInvoiceCreated = (invoiceId) => {
-    setShowUploadModal(false);
-    invoicesTabRef.current?.reloadAndSelect(invoiceId);
-  };
 
   if (isPrivileged) {
+    const Active = { invoices: InvoicesTab, "payment-terms": PaymentTermsTab }[activeTab];
     return (
       <div className="p-4 sm:p-6 xl:p-8 w-full space-y-6">
         <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -81,20 +78,9 @@ const BillingPage = () => {
           ))}
         </div>
 
-        {/* Kept mounted (display:none via hidden) rather than swapped out
-            entirely so invoicesTabRef stays attached across tab switches —
-            the modal can report a created invoice regardless of which tab
-            is currently visible. */}
-        <div className={activeTab === "invoices" ? "" : "hidden"}>
-          <InvoicesTab ref={invoicesTabRef} />
-        </div>
-        {activeTab === "payment-terms" && <PaymentTermsTab />}
+        <Active />
 
-        <UploadInvoiceModal
-          open={showUploadModal}
-          onClose={() => setShowUploadModal(false)}
-          onCreated={handleInvoiceCreated}
-        />
+        <UploadInvoiceModal open={showUploadModal} onClose={() => setShowUploadModal(false)} />
       </div>
     );
   }

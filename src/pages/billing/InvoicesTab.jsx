@@ -1,4 +1,4 @@
-import React, { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Inbox, ArrowLeft, Search, FileText, LayoutList } from "lucide-react";
 import { getCustomers, getInvoices } from "../../api/billingApi";
@@ -17,13 +17,7 @@ import Dropdown from "../../components/Dropdown";
  * Pay Now action (which only the customer gets — Finance just views the
  * invoice here).
  */
-/**
- * Exposes `reloadAndSelect(invoiceId)` via ref — used by BillingPage after
- * UploadInvoiceModal reports a newly created invoice, so this list
- * refreshes and lands on it without a route navigation (the modal keeps
- * Finance on the Billing page instead of visiting /billing/generate).
- */
-const InvoicesTab = forwardRef((_props, ref) => {
+const InvoicesTab = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [customers, setCustomers] = useState([]);
@@ -90,14 +84,6 @@ const InvoicesTab = forwardRef((_props, ref) => {
   }, []);
 
   const selected = invoices.find((i) => i.id === selectedId);
-
-  useImperativeHandle(ref, () => ({
-    reloadAndSelect: async (invoiceId) => {
-      await load(true);
-      setSelectedId(invoiceId);
-      setShowDocument(false);
-    },
-  }));
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -266,8 +252,6 @@ const InvoicesTab = forwardRef((_props, ref) => {
       </div>
     </div>
   );
-});
-
-InvoicesTab.displayName = "InvoicesTab";
+};
 
 export default InvoicesTab;

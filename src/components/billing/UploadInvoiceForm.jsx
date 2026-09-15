@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import PropTypes from "prop-types";
 import {
   ArrowLeft,
-  X,
   RefreshCw,
   AlertTriangle,
   FileStack,
@@ -13,7 +12,7 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { getCustomers, getPaymentTerms, buildInvoice } from "../../api/billingApi";
-import { parseInvoiceFile } from "../../utils/invoiceFileParser";
+import { parseInvoiceFile, mergeParsedInvoiceResults } from "../../utils/invoiceFileParser";
 import { fireToast } from "../../components/ToastProvider";
 import CustomFieldsEditor from "../invoice-builder/CustomFieldsEditor";
 import LineItemsEditor from "../invoice-builder/LineItemsEditor";
@@ -36,21 +35,20 @@ const addDaysIso = (dateStr, days) => {
 };
 
 /**
- * UploadInvoiceForm — the "Upload Invoice" workflow (upload a vendor/
- * customer invoice file, review the parsed line items, price it, Send
- * Invoice). Shared between two hosts:
- *  - GenerateInvoicePage.jsx — the standalone /billing/generate route
- *    (a direct link still works, e.g. opened in a new tab).
- *  - UploadInvoiceModal.jsx — the Billing page's "Upload Invoice" button,
- *    which opens this as a popup instead of navigating away.
- * The host owns navigation: `onClose` dismisses the workflow (the "Back"/
- * close action, and Cancel-equivalent), `onCreated(invoiceId)` fires once
- * an invoice has actually been built and its "sent email" preview closed.
- * `embedded` swaps the page's own "← Back to Billing" link for a plain
- * "✕ Close" button and drops the page-level padding, since the modal host
- * supplies its own chrome and padding.
+ * UploadInvoiceForm — the invoice builder: review the parsed line items,
+ * price them, Send Invoice. Always the full /billing/generate page (never
+ * embedded in a modal) — the Billing page's "Upload Invoice" button opens
+ * UploadInvoiceModal.jsx, a small popup that only picks/parses the
+ * file(s), then navigates here with the parsed result already in hand
+ * (`initialParsed`) so this page lands straight on the builder view. A
+ * direct visit to /billing/generate (no `initialParsed`) still shows this
+ * component's own upload dropzone first, so the route works standalone.
+ *
+ * `onClose` dismisses the workflow (the "← Back to Billing" action),
+ * `onCreated(invoiceId)` fires once an invoice has actually been built and
+ * its "sent email" preview closed.
  */
-const UploadInvoiceForm = ({ onClose, onCreated, embedded = false }) => {
+const UploadInvoiceForm = ({ onClose, onCreated, initialParsed = null }) => {
   const previewRef = useRef(null);
   const fileInputRef = useRef(null);
   const [customers, setCustomers] = useState([]);
@@ -90,10 +88,17 @@ const UploadInvoiceForm = ({ onClose, onCreated, embedded = false }) => {
         setCustomerId(c[0]?.id ?? "");
         setPaymentTerms(terms);
         setPaymentTermId(terms[0]?.id ?? "");
+        // Arrived here from UploadInvoiceModal, which already parsed the
+        // file(s) — land straight on the builder view with that data
+        // instead of showing the dropzone again. Uses the freshly-fetched
+        // `c` directly rather than the `customers` state (not yet updated
+        // in this same tick) for the customer-name-guess match.
+        if (initialParsed) applyParsed(initialParsed, c);
       } finally {
         setLoadingCustomers(false);
       }
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const customer = customers.find((c) => c.id === customerId);
@@ -121,43 +126,34 @@ const UploadInvoiceForm = ({ onClose, onCreated, embedded = false }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [customer?.id, customer?.discountPct]);
 
-  // Merges N parsed files' rows/columns into one combined set. Columns are
-  // matched across files by label (case-insensitive) rather than kept
-  // separate per file — two invoices both carrying a "Notes" column should
-  // fold into one "Notes" column on the combined line-item table, not
-  // duplicate it once per file uploaded. Every row keeps its own genId()'d
-  // id from the parser (already unique), so rows from different files
-  // never collide.
-  const mergeParsedResults = (parsedList) => {
-    const columns = [];
-    const sharedIdByLabel = new Map();
-    const rows = [];
-    const meta = { customerNameGuess: null, invoiceDateGuess: null, dueDateGuess: null, totalGuess: null };
-
-    for (const parsed of parsedList) {
-      const idMap = new Map();
-      for (const col of parsed.columns) {
-        const key = col.label.trim().toLowerCase();
-        let sharedId = sharedIdByLabel.get(key);
-        if (!sharedId) {
-          sharedId = col.id;
-          sharedIdByLabel.set(key, sharedId);
-          columns.push({ id: sharedId, label: col.label });
-        }
-        idMap.set(col.id, sharedId);
-      }
-      for (const row of parsed.rows) {
-        const extra = {};
-        for (const [colId, val] of Object.entries(row.extra ?? {})) {
-          extra[idMap.get(colId) ?? colId] = val;
-        }
-        rows.push({ ...row, extra });
-      }
-      for (const key of ["customerNameGuess", "invoiceDateGuess", "dueDateGuess", "totalGuess"]) {
-        if (!meta[key] && parsed.meta[key]) meta[key] = parsed.meta[key];
+  // Applies an already-merged parse result (columns/rows/meta) to the
+  // builder's state — shared by handleFiles (this page's own dropzone,
+  // used for a direct /billing/generate visit or "Upload a Different
+  // File") and the mount effect (arriving via UploadInvoiceModal with
+  // `initialParsed`, already parsed there). `customersList` is passed in
+  // explicitly rather than read from the `customers` state, since the
+  // mount-effect caller has it from a just-resolved fetch, one render
+  // before that state settles.
+  const applyParsed = (parsed, customersList) => {
+    let resolvedCustomer = customersList.find((c) => c.id === customerId);
+    if (parsed.meta.customerNameGuess) {
+      const guess = parsed.meta.customerNameGuess.toLowerCase();
+      const match = customersList.find(
+        (c) => c.name.toLowerCase().includes(guess) || guess.includes(c.name.toLowerCase()),
+      );
+      if (match) {
+        setCustomerId(match.id);
+        resolvedCustomer = match;
       }
     }
-    return { columns, rows, meta };
+    // Newly parsed rows default to the resolved customer's Discount %
+    // applied (checked) — matches the effect above, which only re-runs on
+    // a customer change, not on every new set of parsed rows.
+    const discountPct = resolvedCustomer?.discountPct ?? 0;
+    setRows(parsed.rows.map((r) => ({ ...r, discountPct })));
+    setColumns(parsed.columns);
+    if (parsed.meta.invoiceDateGuess) setInvoiceDate(parsed.meta.invoiceDateGuess);
+    setUploaded(true);
   };
 
   const handleFiles = useCallback(
@@ -181,26 +177,8 @@ const UploadInvoiceForm = ({ onClose, onCreated, embedded = false }) => {
         return;
       }
 
-      const parsed = mergeParsedResults(parsedResults);
-      let resolvedCustomer = customer;
-      if (parsed.meta.customerNameGuess) {
-        const guess = parsed.meta.customerNameGuess.toLowerCase();
-        const match = customers.find(
-          (c) => c.name.toLowerCase().includes(guess) || guess.includes(c.name.toLowerCase()),
-        );
-        if (match) {
-          setCustomerId(match.id);
-          resolvedCustomer = match;
-        }
-      }
-      // Newly parsed rows default to the resolved customer's Discount %
-      // applied (checked) — matches the effect above, which only re-runs
-      // on a customer change, not on every new set of parsed rows.
-      const discountPct = resolvedCustomer?.discountPct ?? 0;
-      setRows(parsed.rows.map((r) => ({ ...r, discountPct })));
-      setColumns(parsed.columns);
-      if (parsed.meta.invoiceDateGuess) setInvoiceDate(parsed.meta.invoiceDateGuess);
-      setUploaded(true);
+      const parsed = mergeParsedInvoiceResults(parsedResults);
+      applyParsed(parsed, customers);
 
       const fileWord = parsedResults.length === 1 ? "file" : "files";
       const itemWord = parsed.rows.length === 1 ? "item" : "items";
@@ -211,7 +189,8 @@ const UploadInvoiceForm = ({ onClose, onCreated, embedded = false }) => {
       fireToast(message, failed.length > 0 ? "info" : "success");
       setUploading(false);
     },
-    [customers, customer],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [customers, customerId],
   );
 
   const handleStartOver = () => {
@@ -272,15 +251,15 @@ const UploadInvoiceForm = ({ onClose, onCreated, embedded = false }) => {
   };
 
   return (
-    <div className={embedded ? "space-y-6" : "p-4 sm:p-6 xl:p-8 w-full space-y-6"}>
+    <div className="p-4 sm:p-6 xl:p-8 w-full space-y-6">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <button
             onClick={onClose}
             className="flex items-center gap-1.5 text-xs font-bold text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 mb-2"
           >
-            {embedded ? <X className="w-3.5 h-3.5" /> : <ArrowLeft className="w-3.5 h-3.5" />}
-            {embedded ? "Close" : "Back to Billing"}
+            <ArrowLeft className="w-3.5 h-3.5" />
+            Back to Billing
           </button>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight flex items-center gap-3">
             <span className="p-2 bg-brand-50 dark:bg-brand-900/20 rounded-xl">
@@ -330,7 +309,7 @@ const UploadInvoiceForm = ({ onClose, onCreated, embedded = false }) => {
       )}
 
       {!uploaded && (
-        <div className="max-w-xl">
+        <div className="max-w-xl mx-auto">
           <div
             onDragOver={(e) => {
               e.preventDefault();
@@ -601,7 +580,11 @@ const UploadInvoiceForm = ({ onClose, onCreated, embedded = false }) => {
 UploadInvoiceForm.propTypes = {
   onClose: PropTypes.func.isRequired,
   onCreated: PropTypes.func.isRequired,
-  embedded: PropTypes.bool,
+  initialParsed: PropTypes.shape({
+    columns: PropTypes.array.isRequired,
+    rows: PropTypes.array.isRequired,
+    meta: PropTypes.object.isRequired,
+  }),
 };
 
 export default UploadInvoiceForm;
