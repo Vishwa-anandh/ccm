@@ -547,6 +547,7 @@ const UploadInvoiceForm = ({ onClose, onCreated, initialParsed = null }) => {
                     address: customer?.billingAddress ?? "",
                     email: customer?.primaryContactEmail ?? "",
                   }}
+                  shipTo={{ address: customer?.shippingAddress ?? "" }}
                   customFields={customFields}
                   columns={columns}
                   rows={rows}

@@ -37,6 +37,7 @@ const InvoiceDocument = forwardRef(({ invoice, customer }, ref) => {
         address: customer?.billingAddress ?? "",
         email: customer?.primaryContactEmail ?? "",
       }}
+      shipTo={{ address: customer?.shippingAddress ?? "" }}
       customFields={invoice.customFields ?? []}
       columns={invoice.columns ?? []}
       rows={rows}

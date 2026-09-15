@@ -35,6 +35,7 @@ const InvoicePreview = forwardRef(
       dueDate,
       paymentTermName,
       billTo,
+      shipTo,
       customFields,
       columns,
       rows,
@@ -95,6 +96,16 @@ const InvoicePreview = forwardRef(
                 overflowing straight across the page. */}
             <p className="text-xs text-gray-500 whitespace-pre-line break-words max-w-[260px]">{billTo.address}</p>
             <p className="text-xs text-gray-500 break-words max-w-[260px]">{billTo.email}</p>
+
+            {/* Only shown when the customer actually has a distinct
+                shipping address on file — "same as billing" (the default)
+                would just repeat BILL TO right below it. */}
+            {shipTo?.address && shipTo.address !== billTo.address && (
+              <div className="mt-4">
+                <p className="text-[10px] font-bold text-gray-400 tracking-wide mb-1">SHIP TO</p>
+                <p className="text-xs text-gray-500 whitespace-pre-line break-words max-w-[260px]">{shipTo.address}</p>
+              </div>
+            )}
           </div>
 
           {/* Invoice Summary card */}
@@ -247,6 +258,9 @@ InvoicePreview.propTypes = {
     address: PropTypes.string,
     email: PropTypes.string,
   }).isRequired,
+  shipTo: PropTypes.shape({
+    address: PropTypes.string,
+  }),
   customFields: PropTypes.arrayOf(
     PropTypes.shape({ id: PropTypes.string, label: PropTypes.string, value: PropTypes.string }),
   ).isRequired,
