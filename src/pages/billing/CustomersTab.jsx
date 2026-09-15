@@ -145,8 +145,11 @@ const CustomersTab = () => {
             <label className="block text-xs font-semibold text-gray-500 mb-1">Discount %</label>
             <input
               type="number" step="0.1" min="0"
-              value={form.discountPct}
-              onChange={(e) => setForm({ ...form, discountPct: Number(e.target.value) })}
+              // Blank instead of a literal "0" — see the same treatment on
+              // Tax %/Summary Adj. % in GenerateInvoicePage.jsx.
+              value={form.discountPct === 0 ? "" : form.discountPct}
+              onChange={(e) => setForm({ ...form, discountPct: e.target.value === "" ? 0 : Number(e.target.value) })}
+              placeholder="0"
               className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm"
             />
             <p className="text-[10px] text-gray-400 mt-1">

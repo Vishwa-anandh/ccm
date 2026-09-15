@@ -1,10 +1,10 @@
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useRef, useState } from "react";
 import { CalendarClock, Receipt as ReceiptIcon, Upload } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import PaymentTermsTab from "./PaymentTermsTab";
 import InvoicesTab from "./InvoicesTab";
 import CustomerBillingView from "./CustomerBillingView";
+import UploadInvoiceModal from "../../components/billing/UploadInvoiceModal";
 
 const TABS = [
   { id: "invoices", label: "Invoices", icon: ReceiptIcon },
@@ -22,19 +22,27 @@ const TABS = [
  * Customers (billable-account management) moved to its own sidebar
  * destination (/billing/customers, CustomersPage.jsx) — it's a distinct
  * workflow from invoicing, not a tab of it.
+ *
+ * "Upload Invoice" opens UploadInvoiceModal as a popup rather than
+ * navigating to /billing/generate — Finance stays on this page, and once
+ * an invoice is created the modal closes and InvoicesTab (held via ref)
+ * refreshes and selects it in place, no route change needed. The
+ * standalone /billing/generate route (GenerateInvoicePage.jsx) still
+ * exists for a direct link.
  */
 const BillingPage = () => {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const isPrivileged = user?.role === "admin" || user?.role === "owner";
   const [activeTab, setActiveTab] = useState("invoices");
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const invoicesTabRef = useRef(null);
+
+  const handleInvoiceCreated = (invoiceId) => {
+    setShowUploadModal(false);
+    invoicesTabRef.current?.reloadAndSelect(invoiceId);
+  };
 
   if (isPrivileged) {
-    const Active = { invoices: InvoicesTab, "payment-terms": PaymentTermsTab }[activeTab];
-    // Full-width, matching the app's actual dominant dashboard convention
-    // (HomePage, BudgetsPage, SyncLogsPage, UserManagement, Recommendations,
-    // SmartAlerts, SubscriptionManagement) — only InvoicesPage.jsx and
-    // InvoiceBuilderPage.jsx are the max-w-7xl outliers, not the norm.
     return (
       <div className="p-4 sm:p-6 xl:p-8 w-full space-y-6">
         <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -50,7 +58,7 @@ const BillingPage = () => {
             </p>
           </div>
           {activeTab === "invoices" && (
-            <button onClick={() => navigate("/billing/generate")} className="btn-primary">
+            <button onClick={() => setShowUploadModal(true)} className="btn-primary">
               <Upload className="w-4 h-4" /> Upload Invoice
             </button>
           )}
@@ -73,7 +81,20 @@ const BillingPage = () => {
           ))}
         </div>
 
-        <Active />
+        {/* Kept mounted (display:none via hidden) rather than swapped out
+            entirely so invoicesTabRef stays attached across tab switches —
+            the modal can report a created invoice regardless of which tab
+            is currently visible. */}
+        <div className={activeTab === "invoices" ? "" : "hidden"}>
+          <InvoicesTab ref={invoicesTabRef} />
+        </div>
+        {activeTab === "payment-terms" && <PaymentTermsTab />}
+
+        <UploadInvoiceModal
+          open={showUploadModal}
+          onClose={() => setShowUploadModal(false)}
+          onCreated={handleInvoiceCreated}
+        />
       </div>
     );
   }

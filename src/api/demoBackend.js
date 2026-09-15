@@ -777,6 +777,7 @@ export async function demoAdapter(config) {
     const {
       customerId,
       invoiceDate,
+      serialNumber,
       poNumber,
       billingPeriodStart,
       billingPeriodEnd,
@@ -837,6 +838,7 @@ export async function demoAdapter(config) {
       customerId,
       currency: "USD",
       invoiceDate: resolvedInvoiceDate,
+      serialNumber: serialNumber || null,
       poNumber: poNumber || null,
       billingPeriodStart: billingPeriodStart || null,
       billingPeriodEnd: billingPeriodEnd || null,

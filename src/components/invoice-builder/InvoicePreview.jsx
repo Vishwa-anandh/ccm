@@ -28,6 +28,7 @@ const InvoicePreview = forwardRef(
     {
       invoiceNumber,
       invoiceDate,
+      serialNumber,
       poNumber,
       billingPeriodStart,
       billingPeriodEnd,
@@ -110,6 +111,12 @@ const InvoicePreview = forwardRef(
                 <span className="text-gray-500">Invoice Date</span>
                 <span className="font-semibold text-gray-800">{invoiceDate}</span>
               </div>
+              {serialNumber && (
+                <div className="flex justify-between gap-3">
+                  <span className="text-gray-500">Serial Number</span>
+                  <span className="font-semibold text-gray-800">{serialNumber}</span>
+                </div>
+              )}
               {poNumber && (
                 <div className="flex justify-between gap-3">
                   <span className="text-gray-500">PO Number</span>
@@ -229,6 +236,7 @@ InvoicePreview.displayName = "InvoicePreview";
 InvoicePreview.propTypes = {
   invoiceNumber: PropTypes.string.isRequired,
   invoiceDate: PropTypes.string.isRequired,
+  serialNumber: PropTypes.string,
   poNumber: PropTypes.string,
   billingPeriodStart: PropTypes.string,
   billingPeriodEnd: PropTypes.string,

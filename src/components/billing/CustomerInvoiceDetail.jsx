@@ -133,6 +133,9 @@ const CustomerInvoiceDetail = ({ invoice, customer, allowPayment = false, onPayN
         <div className="px-5 py-4 space-y-3">
           <div className="flex flex-wrap gap-2">
             <MetaChip icon={FileText} label="Invoice Date" value={fmtDate(invoice.invoiceDate)} accent="gray" />
+            {invoice.serialNumber && (
+              <MetaChip icon={Tag} label="Serial Number" value={invoice.serialNumber} accent="gray" />
+            )}
             {invoice.poNumber && (
               <MetaChip icon={Tag} label="PO Number" value={invoice.poNumber} accent="gray" />
             )}

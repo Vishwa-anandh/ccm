@@ -26,6 +26,7 @@ const InvoiceDocument = forwardRef(({ invoice, customer }, ref) => {
       ref={ref}
       invoiceNumber={invoice.invoiceNumber}
       invoiceDate={invoice.invoiceDate}
+      serialNumber={invoice.serialNumber}
       poNumber={invoice.poNumber}
       billingPeriodStart={invoice.billingPeriodStart}
       billingPeriodEnd={invoice.billingPeriodEnd}
