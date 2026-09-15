@@ -1,12 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Inbox, ArrowLeft, Mail, Search, FileText, LayoutList } from "lucide-react";
-import { getCustomers, getInvoices, getInvoiceEmail } from "../../api/billingApi";
+import { Inbox, ArrowLeft, Search, FileText, LayoutList } from "lucide-react";
+import { getCustomers, getInvoices } from "../../api/billingApi";
 import { formatCurrency } from "../../utils/formatters";
 import CustomerInvoiceDetail, { StatusPill } from "../../components/billing/CustomerInvoiceDetail";
 import InvoiceDocument from "../../components/billing/InvoiceDocument";
-import SentEmailModal from "../../components/billing/SentEmailModal";
-import { fireToast } from "../../components/ToastProvider";
 import Dropdown from "../../components/Dropdown";
 
 /**
@@ -26,7 +24,6 @@ const InvoicesTab = () => {
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState(location.state?.selectedInvoiceId ?? null);
-  const [viewingEmail, setViewingEmail] = useState(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [customerFilter, setCustomerFilter] = useState("all");
@@ -87,14 +84,6 @@ const InvoicesTab = () => {
   }, []);
 
   const selected = invoices.find((i) => i.id === selectedId);
-
-  const handleViewEmail = async () => {
-    try {
-      setViewingEmail(await getInvoiceEmail(selected.id));
-    } catch {
-      fireToast("No email on file for this invoice (created before this feature existed).", "error");
-    }
-  };
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -240,12 +229,6 @@ const InvoicesTab = () => {
                 {showDocument ? <LayoutList className="w-3.5 h-3.5" /> : <FileText className="w-3.5 h-3.5" />}
                 {showDocument ? "View Summary" : "View Invoice"}
               </button>
-              <button
-                onClick={handleViewEmail}
-                className="flex items-center gap-1.5 text-xs font-bold text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700"
-              >
-                <Mail className="w-3.5 h-3.5" /> View Sent Email
-              </button>
             </div>
             {showDocument ? (
               <div className="bg-gray-100 dark:bg-gray-950 rounded-2xl p-4 overflow-auto">
@@ -267,8 +250,6 @@ const InvoicesTab = () => {
           </div>
         )}
       </div>
-
-      <SentEmailModal email={viewingEmail} onClose={() => setViewingEmail(null)} />
     </div>
   );
 };
