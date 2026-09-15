@@ -22,28 +22,6 @@ export const deleteCustomer = async (id) => {
     return data;
 };
 
-/* ── Pricing Rules ─────────────────────────────────────────── */
-
-export const getPricingRules = async () => {
-    const { data } = await api.get('/billing/pricing-rules');
-    return data;
-};
-
-export const createPricingRule = async (ruleData) => {
-    const { data } = await api.post('/billing/pricing-rules', ruleData);
-    return data;
-};
-
-export const updatePricingRule = async (id, ruleData) => {
-    const { data } = await api.patch(`/billing/pricing-rules/${id}`, ruleData);
-    return data;
-};
-
-export const deletePricingRule = async (id) => {
-    const { data } = await api.delete(`/billing/pricing-rules/${id}`);
-    return data;
-};
-
 /* ── Payment Terms ─────────────────────────────────────────── */
 
 export const getPaymentTerms = async () => {

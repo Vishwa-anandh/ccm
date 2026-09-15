@@ -3,7 +3,6 @@ import PropTypes from "prop-types";
 import { Plus, Trash2, Columns, Percent } from "lucide-react";
 import { round2 } from "../../utils/pricingCalc";
 import { formatCurrency } from "../../utils/formatters";
-import PctRuleInput from "../billing/PctRuleInput";
 
 /**
  * LineItemsEditor — the dynamic rows + columns editor. Description/
@@ -11,18 +10,16 @@ import PctRuleInput from "../billing/PctRuleInput";
  * computed, never entered directly); "+ Add Column" appends extra,
  * display-only text columns that appear on every row.
  *
- * `pricingRules` is optional — pass it (Billing's GenerateInvoicePage does)
- * to make a Discount % column available, with a select-a-rule-or-type-
- * manually picker that folds into Amount. Leaving it undefined (the
- * standalone Invoice Builder page does) removes the feature entirely —
- * this component's original two consumers stay identical. When available,
- * Finance can still remove/re-add the column itself (its trash icon /
- * "+ Add Discount %"), same as any custom column; each row keeps its own
- * discountPct even while the column is hidden, so re-adding it doesn't
- * lose anything already entered.
+ * `discountAvailable` is optional — pass true (Billing's
+ * GenerateInvoicePage does) to make a Discount % column available, which
+ * folds into Amount. Leaving it unset (the standalone Invoice Builder
+ * page does) removes the feature entirely — this component's original two
+ * consumers stay identical. When available, Finance can still remove/
+ * re-add the column itself (its trash icon / "+ Add Discount %"), same as
+ * any custom column; each row keeps its own discountPct even while the
+ * column is hidden, so re-adding it doesn't lose anything already entered.
  */
-const LineItemsEditor = ({ columns, rows, onColumnsChange, onRowsChange, pricingRules }) => {
-  const discountAvailable = pricingRules !== undefined;
+const LineItemsEditor = ({ columns, rows, onColumnsChange, onRowsChange, discountAvailable = false }) => {
   const [discountColumnVisible, setDiscountColumnVisible] = useState(discountAvailable);
   const showDiscount = discountAvailable && discountColumnVisible;
 
@@ -75,7 +72,7 @@ const LineItemsEditor = ({ columns, rows, onColumnsChange, onRowsChange, pricing
               <th className="text-right px-2 py-1.5 w-20">Qty</th>
               <th className="text-right px-2 py-1.5 w-24">Unit Price</th>
               {showDiscount && (
-                <th className="text-right px-2 py-1.5 w-32">
+                <th className="text-right px-2 py-1.5 w-28">
                   <div className="flex items-center justify-end gap-1">
                     Discount %
                     <button
@@ -151,10 +148,13 @@ const LineItemsEditor = ({ columns, rows, onColumnsChange, onRowsChange, pricing
                   </td>
                   {showDiscount && (
                     <td className="px-2 py-1.5">
-                      <PctRuleInput
-                        value={Number(r.discountPct || 0)}
-                        onChange={(v) => updateRow(r.id, "discountPct", v)}
-                        rules={pricingRules}
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.1"
+                        value={r.discountPct ?? 0}
+                        onChange={(e) => updateRow(r.id, "discountPct", Number(e.target.value))}
+                        className="w-full text-right bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-2"
                       />
                     </td>
                   )}
@@ -231,9 +231,7 @@ LineItemsEditor.propTypes = {
   ).isRequired,
   onColumnsChange: PropTypes.func.isRequired,
   onRowsChange: PropTypes.func.isRequired,
-  pricingRules: PropTypes.arrayOf(
-    PropTypes.shape({ id: PropTypes.string, name: PropTypes.string, percentage: PropTypes.number }),
-  ),
+  discountAvailable: PropTypes.bool,
 };
 
 export default LineItemsEditor;

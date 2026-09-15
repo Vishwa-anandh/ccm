@@ -12,7 +12,7 @@ const EMPTY_FORM = { name: "", billingAddress: "", primaryContactEmail: "", disc
  * alone if that customer hasn't been matched to one yet) — no new login is
  * ever created here, just the billing profile (address, logo, contact).
  *
- * Same list + form-column layout as PricingRulesTab.jsx; the form doubles
+ * Same list + form-column layout as PaymentTermsTab.jsx; the form doubles
  * as both "New Customer" and "Edit Customer" (via `editingId`), matching
  * how AccountManager.jsx reuses one surface for both create and edit.
  */

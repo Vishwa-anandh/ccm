@@ -329,7 +329,6 @@ let nextCustomerInvoiceSeq = 12; // seeded ones below use 0007–0011
 // land close together (the adapter's artificial network delay widens that
 // window enough for it to matter in practice).
 let nextCustomerId = 4;
-let nextRuleId = 6;
 let nextPaymentTermId = 4;
 let nextCustomerInvoiceId = 6;
 let nextPaymentId = 2;
@@ -371,18 +370,6 @@ const CUSTOMERS = loadPersisted("customers", [
   },
 ]);
 nextCustomerId = nextNumericId(CUSTOMERS, "cust-", nextCustomerId);
-
-// Pricing Rules are now just named, reusable percentages — not tied to
-// any one customer or vendor. Finance picks one (or types a custom %)
-// wherever a percentage is needed: a line's Discount %, a line's Maitsys
-// Adjustment %, or an invoice's Overall Adjustment %.
-const PRICING_RULES = [
-  { id: "rule-1", name: "Standard Discount", percentage: 5 },
-  { id: "rule-2", name: "Volume Discount", percentage: 10 },
-  { id: "rule-3", name: "Loyalty Discount", percentage: 15 },
-  { id: "rule-4", name: "Service Fee Adjustment", percentage: 5 },
-  { id: "rule-5", name: "Standard Tax", percentage: 8 },
-];
 
 // Payment Terms — named day-count presets (Net 30/60/90). Picked at
 // invoice creation to compute Due Date = Invoice Date + days; replaces
@@ -744,34 +731,6 @@ export async function demoAdapter(config) {
       // just won't resolve to a live customer record afterward.
       CUSTOMERS.splice(idx, 1);
       persist("customers", CUSTOMERS);
-      return ok({}, config);
-    }
-  }
-
-  if (method === "get" && path === "/billing/pricing-rules") {
-    return ok(PRICING_RULES, config);
-  }
-  if (method === "post" && path === "/billing/pricing-rules") {
-    const b = body(config);
-    const rule = {
-      id: `rule-${nextRuleId++}`,
-      ...b,
-    };
-    PRICING_RULES.push(rule);
-    return ok(rule, config);
-  }
-  {
-    const id = matchParam("/billing/pricing-rules/:id", path);
-    if (id && method === "patch") {
-      const rule = PRICING_RULES.find((r) => r.id === id);
-      if (!rule) return fail("Pricing rule not found", config, 404);
-      Object.assign(rule, body(config));
-      return ok(rule, config);
-    }
-    if (id && method === "delete") {
-      const idx = PRICING_RULES.findIndex((r) => r.id === id);
-      if (idx === -1) return fail("Pricing rule not found", config, 404);
-      PRICING_RULES.splice(idx, 1);
       return ok({}, config);
     }
   }

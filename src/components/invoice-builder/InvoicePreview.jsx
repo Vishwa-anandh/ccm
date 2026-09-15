@@ -2,22 +2,21 @@ import React, { forwardRef } from "react";
 import PropTypes from "prop-types";
 import { round2 } from "../../utils/pricingCalc";
 import { formatCurrency } from "../../utils/formatters";
+import { CCM_LOGO_SRC, MaitsysMark } from "./InvoiceLogos";
 
-// Two selectable sender identities ("logo" prop) — CCM has no separate
-// image asset, so it renders as a lettermark badge instead of an <img>,
-// same visual weight as Maitsys's real logo image.
+// Two selectable sender identities ("logo" prop). CCM's mark is the
+// existing /app-logo.png image asset; Maitsys's mark is the MaitsysMark
+// component (see InvoiceLogos.jsx for why it's inline SVG, not an image).
 const SENDER_PROFILES = {
   maitsys: {
     name: "Maitsys",
     email: "contact@maitsys.com",
     website: "www.maitsys.com",
-    image: "/app-logo.png",
   },
   ccm: {
     name: "CCM",
     email: "billing@ccm.io",
     website: "www.ccm.io",
-    image: null, // rendered as a lettermark badge below instead
   },
 };
 
@@ -68,16 +67,10 @@ const InvoicePreview = forwardRef(
       <div ref={ref} className="bg-white text-gray-900 w-full" style={{ minHeight: 600 }}>
         <div className={`flex items-start justify-between p-10 pb-6 ${modern ? "bg-brand-600 text-white" : ""}`}>
           <div className="flex items-center gap-3 min-w-0">
-            {sender.image ? (
-              <img src={sender.image} alt={sender.name} className="w-12 h-12 object-contain shrink-0" />
+            {logo === "ccm" ? (
+              <img src={CCM_LOGO_SRC} alt="CCM" className="w-12 h-12 object-contain shrink-0" />
             ) : (
-              <div
-                className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 font-bold text-sm tracking-tight ${
-                  modern ? "bg-white/15 text-white" : "bg-brand-600 text-white"
-                }`}
-              >
-                CCM
-              </div>
+              <MaitsysMark className="w-12 h-12 shrink-0" />
             )}
             <div className="min-w-0">
               <p className="font-bold text-lg">{sender.name}</p>

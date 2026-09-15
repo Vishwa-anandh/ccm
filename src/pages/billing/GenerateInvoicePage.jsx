@@ -11,7 +11,7 @@ import {
   FileWarning,
   RotateCcw,
 } from "lucide-react";
-import { getCustomers, getPricingRules, getPaymentTerms, buildInvoice } from "../../api/billingApi";
+import { getCustomers, getPaymentTerms, buildInvoice } from "../../api/billingApi";
 import { parseInvoiceFile } from "../../utils/invoiceFileParser";
 import { fireToast } from "../../components/ToastProvider";
 import CustomFieldsEditor from "../../components/invoice-builder/CustomFieldsEditor";
@@ -19,7 +19,6 @@ import LineItemsEditor from "../../components/invoice-builder/LineItemsEditor";
 import InvoicePreview from "../../components/invoice-builder/InvoicePreview";
 import TemplatePicker from "../../components/invoice-builder/TemplatePicker";
 import LogoPicker from "../../components/invoice-builder/LogoPicker";
-import PctRuleInput from "../../components/billing/PctRuleInput";
 import SentEmailModal from "../../components/billing/SentEmailModal";
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
@@ -50,7 +49,6 @@ const GenerateInvoicePage = () => {
   const [customers, setCustomers] = useState([]);
   const [customerId, setCustomerId] = useState("");
   const [loadingCustomers, setLoadingCustomers] = useState(true);
-  const [pricingRules, setPricingRules] = useState([]);
   const [paymentTerms, setPaymentTerms] = useState([]);
   const [paymentTermId, setPaymentTermId] = useState("");
   const [invoiceDate, setInvoiceDate] = useState(todayIso);
@@ -76,10 +74,9 @@ const GenerateInvoicePage = () => {
   useEffect(() => {
     (async () => {
       try {
-        const [c, rules, terms] = await Promise.all([getCustomers(), getPricingRules(), getPaymentTerms()]);
+        const [c, terms] = await Promise.all([getCustomers(), getPaymentTerms()]);
         setCustomers(c);
         setCustomerId(c[0]?.id ?? "");
-        setPricingRules(rules);
         setPaymentTerms(terms);
         setPaymentTermId(terms[0]?.id ?? "");
       } finally {
@@ -331,7 +328,7 @@ const GenerateInvoicePage = () => {
             )}
 
             <p className="text-[10px] text-gray-400 -mt-2">
-              Pick a Pricing Rule or type a custom % for each line's Discount below. Maitsys Adjustment % is set afterward, right on the created invoice.
+              Set a Discount % per line below, or apply the customer's discount to all of them at once.
             </p>
 
             <div className="grid grid-cols-2 gap-3">
@@ -383,7 +380,14 @@ const GenerateInvoicePage = () => {
               </div>
               <div>
                 <label className="block text-xs font-semibold text-gray-500 mb-1">Overall Adjustment %</label>
-                <PctRuleInput value={overallAdjustmentPct} onChange={setOverallAdjustmentPct} rules={pricingRules} />
+                <input
+                  type="number"
+                  min="0"
+                  step="0.1"
+                  value={overallAdjustmentPct}
+                  onChange={(e) => setOverallAdjustmentPct(Number(e.target.value))}
+                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm"
+                />
               </div>
             </div>
 
@@ -399,7 +403,7 @@ const GenerateInvoicePage = () => {
                 rows={rows}
                 onColumnsChange={setColumns}
                 onRowsChange={setRows}
-                pricingRules={pricingRules}
+                discountAvailable
               />
             </div>
           </div>
