@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Upload, Inbox, ArrowLeft, Mail, Search } from "lucide-react";
+import { Inbox, ArrowLeft, Mail, Search } from "lucide-react";
 import { getCustomers, getInvoices, getInvoiceEmail } from "../../api/billingApi";
 import { formatCurrency } from "../../utils/formatters";
 import CustomerInvoiceDetail, { StatusPill } from "../../components/billing/CustomerInvoiceDetail";
@@ -97,10 +97,6 @@ const InvoicesTab = () => {
           list to reach it — at lg+ both panes show side by side as before,
           50/50 split. */}
       <div className={`space-y-3 ${selected ? "hidden lg:block" : ""}`}>
-        <button onClick={() => navigate("/billing/generate")} className="btn-primary w-full justify-center">
-          <Upload className="w-4 h-4" /> Upload Invoice
-        </button>
-
         {loading && (
           <div className="space-y-2">
             <div className="skeleton rounded-2xl h-24 w-full" />

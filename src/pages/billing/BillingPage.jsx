@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { CalendarClock, Receipt as ReceiptIcon } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { CalendarClock, Receipt as ReceiptIcon, Upload } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import PaymentTermsTab from "./PaymentTermsTab";
 import InvoicesTab from "./InvoicesTab";
@@ -24,6 +25,7 @@ const TABS = [
  */
 const BillingPage = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const isPrivileged = user?.role === "admin" || user?.role === "owner";
   const [activeTab, setActiveTab] = useState("invoices");
 
@@ -47,6 +49,11 @@ const BillingPage = () => {
               Generate branded customer invoices from already-ingested vendor invoices.
             </p>
           </div>
+          {activeTab === "invoices" && (
+            <button onClick={() => navigate("/billing/generate")} className="btn-primary">
+              <Upload className="w-4 h-4" /> Upload Invoice
+            </button>
+          )}
         </div>
 
         <div className="flex gap-1 bg-gray-100 dark:bg-gray-800 rounded-xl p-1 w-fit">

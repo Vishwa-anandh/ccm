@@ -20,6 +20,7 @@ import InvoicePreview from "../../components/invoice-builder/InvoicePreview";
 import TemplatePicker from "../../components/invoice-builder/TemplatePicker";
 import LogoPicker from "../../components/invoice-builder/LogoPicker";
 import SentEmailModal from "../../components/billing/SentEmailModal";
+import SendInvoiceConfirmModal from "../../components/billing/SendInvoiceConfirmModal";
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
 // Pure calendar-date arithmetic via Date.UTC, deliberately never touching
@@ -64,6 +65,7 @@ const GenerateInvoicePage = () => {
   const [showPreview, setShowPreview] = useState(true);
   const [sentEmail, setSentEmail] = useState(null);
   const [createdInvoiceId, setCreatedInvoiceId] = useState(null);
+  const [showSendConfirm, setShowSendConfirm] = useState(false);
 
   const [uploaded, setUploaded] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -140,8 +142,16 @@ const GenerateInvoicePage = () => {
     setUploadError("");
   };
 
-  const handleCreate = async () => {
+  // "Send Invoice" opens the confirmation modal first — it never creates
+  // anything by itself. Only confirming inside that modal actually builds
+  // the invoice and (simulated-)emails it.
+  const handleSendClick = () => {
     if (!canCreate) return;
+    setError("");
+    setShowSendConfirm(true);
+  };
+
+  const handleConfirmSend = async () => {
     setBusy(true);
     setError("");
     try {
@@ -158,6 +168,7 @@ const GenerateInvoicePage = () => {
         logo,
       });
       fireToast(`Invoice ${invoice.invoiceNumber} created — emailed to ${email.to}`, "success");
+      setShowSendConfirm(false);
       // Stay on this page with the "sent email" preview open (real link,
       // clickable) rather than navigating straight away; closing it is
       // what actually takes Finance to the created invoice.
@@ -165,6 +176,7 @@ const GenerateInvoicePage = () => {
       setSentEmail(email);
     } catch (err) {
       setError(err.response?.data?.error || "Couldn't create the invoice.");
+      setShowSendConfirm(false);
     } finally {
       setBusy(false);
     }
@@ -214,12 +226,12 @@ const GenerateInvoicePage = () => {
               {showPreview ? "Hide Preview" : "Show Preview"}
             </button>
             <button
-              onClick={handleCreate}
+              onClick={handleSendClick}
               disabled={busy || !canCreate}
               className="btn-primary disabled:opacity-50"
             >
               {busy && <RefreshCw className="w-4 h-4 animate-spin" />}
-              Save Invoice
+              Send Invoice
             </button>
           </div>
         )}
@@ -431,6 +443,16 @@ const GenerateInvoicePage = () => {
         </div>
       )}
 
+      <SendInvoiceConfirmModal
+        open={showSendConfirm}
+        customer={customer}
+        rows={rows}
+        taxPct={taxPct}
+        overallAdjustmentPct={overallAdjustmentPct}
+        busy={busy}
+        onConfirm={handleConfirmSend}
+        onCancel={() => setShowSendConfirm(false)}
+      />
       <SentEmailModal email={sentEmail} onClose={handleCloseSentEmail} />
     </div>
   );
