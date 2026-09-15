@@ -53,6 +53,7 @@ const GenerateInvoicePage = () => {
   const [paymentTerms, setPaymentTerms] = useState([]);
   const [paymentTermId, setPaymentTermId] = useState("");
   const [invoiceDate, setInvoiceDate] = useState(todayIso);
+  const [billingEndDate, setBillingEndDate] = useState(todayIso);
   const [taxPct, setTaxPct] = useState(0);
   const [overallAdjustmentPct, setOverallAdjustmentPct] = useState(0);
   const [template, setTemplate] = useState("classic");
@@ -158,6 +159,7 @@ const GenerateInvoicePage = () => {
       const { invoice, email } = await buildInvoice({
         customerId,
         invoiceDate,
+        billingEndDate,
         paymentTermId,
         customFields,
         columns,
@@ -300,34 +302,34 @@ const GenerateInvoicePage = () => {
       {uploaded && (
         <div className={`grid grid-cols-1 gap-6 ${showPreview ? "lg:grid-cols-2" : ""}`}>
           <div className="space-y-5 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-5 shadow-card">
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 mb-1">Customer</label>
+              {loadingCustomers ? (
+                <div className="skeleton rounded-xl h-10 w-full" />
+              ) : (
+                <select
+                  value={customerId}
+                  onChange={(e) => setCustomerId(e.target.value)}
+                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm font-semibold"
+                >
+                  {customers.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1">Customer</label>
-                {loadingCustomers ? (
-                  <div className="skeleton rounded-xl h-10 w-full" />
-                ) : (
-                  <select
-                    value={customerId}
-                    onChange={(e) => setCustomerId(e.target.value)}
-                    className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm font-semibold"
-                  >
-                    {customers.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
-                )}
-              </div>
               <div>
                 <p className="text-xs font-semibold text-gray-500 mb-1">Template</p>
                 <TemplatePicker value={template} onChange={setTemplate} compact />
               </div>
-            </div>
-
-            <div>
-              <p className="text-xs font-semibold text-gray-500 mb-1">Logo</p>
-              <LogoPicker value={logo} onChange={setLogo} />
+              <div>
+                <p className="text-xs font-semibold text-gray-500 mb-1">Logo</p>
+                <LogoPicker value={logo} onChange={setLogo} />
+              </div>
             </div>
 
             <p className="text-[10px] text-gray-400 -mt-2">
@@ -347,10 +349,22 @@ const GenerateInvoicePage = () => {
                 />
               </div>
               <div>
+                <label className="block text-xs font-semibold text-gray-500 mb-1">Billing End Date</label>
+                <input
+                  type="date"
+                  value={billingEndDate}
+                  onChange={(e) => setBillingEndDate(e.target.value)}
+                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-3">
+              <div>
                 <label className="block text-xs font-semibold text-gray-500 mb-1">Payment Term</label>
                 {paymentTerms.length === 0 ? (
                   <p className="text-xs text-gray-400 bg-gray-50 dark:bg-gray-800 rounded-lg px-3 py-2.5">
-                    No payment terms yet — add one in the Payment Terms tab.
+                    None yet
                   </p>
                 ) : (
                   <select
@@ -360,19 +374,13 @@ const GenerateInvoicePage = () => {
                   >
                     {paymentTerms.map((t) => (
                       <option key={t.id} value={t.id}>
-                        {t.name} ({t.days} days)
+                        {t.name} ({t.days}d)
                       </option>
                     ))}
                   </select>
                 )}
               </div>
-            </div>
-            <p className="text-[10px] text-gray-400 -mt-2">
-              Due Date: <span className="font-semibold text-gray-600 dark:text-gray-300">{computedDueDate}</span> — Invoice Date + the selected term's days.
-            </p>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="max-w-[140px]">
+              <div>
                 <label className="block text-xs font-semibold text-gray-500 mb-1">Tax %</label>
                 <input
                   type="number"
@@ -384,7 +392,7 @@ const GenerateInvoicePage = () => {
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1">Overall Adjustment %</label>
+                <label className="block text-xs font-semibold text-gray-500 mb-1">Overall Adj. %</label>
                 <input
                   type="number"
                   min="0"
@@ -395,6 +403,12 @@ const GenerateInvoicePage = () => {
                 />
               </div>
             </div>
+            {paymentTerms.length === 0 && (
+              <p className="text-[10px] text-gray-400 -mt-2">No payment terms yet — add one in the Payment Terms tab.</p>
+            )}
+            <p className="text-[10px] text-gray-400 -mt-2">
+              Due Date: <span className="font-semibold text-gray-600 dark:text-gray-300">{computedDueDate}</span> — Invoice Date + the selected term's days.
+            </p>
 
             <div>
               <p className="text-xs font-bold text-gray-500 dark:text-gray-400 mb-2 tracking-wide">Custom Fields</p>
@@ -421,6 +435,7 @@ const GenerateInvoicePage = () => {
                   ref={previewRef}
                   invoiceNumber="PREVIEW"
                   invoiceDate={invoiceDate}
+                  billingEndDate={billingEndDate}
                   dueDate={computedDueDate}
                   paymentTermName={selectedTerm?.name}
                   billTo={{
