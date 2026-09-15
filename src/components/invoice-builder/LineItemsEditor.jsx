@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import PropTypes from "prop-types";
 import { Plus, Trash2, Columns, Percent } from "lucide-react";
 import { round2 } from "../../utils/pricingCalc";
@@ -28,6 +28,23 @@ import { formatCurrency } from "../../utils/formatters";
 const LineItemsEditor = ({ columns, rows, onColumnsChange, onRowsChange, discountAvailable = false, customerDiscountPct = 0 }) => {
   const [discountColumnVisible, setDiscountColumnVisible] = useState(discountAvailable);
   const showDiscount = discountAvailable && discountColumnVisible;
+  const selectAllRef = useRef(null);
+
+  const discountedCount = rows.filter((r) => Number(r.discountPct || 0) > 0).length;
+  const allDiscounted = rows.length > 0 && discountedCount === rows.length;
+  const someDiscounted = discountedCount > 0 && discountedCount < rows.length;
+
+  // Native checkboxes only expose "indeterminate" as a DOM property, not a
+  // JSX attribute — set it imperatively whenever the mixed-selection state
+  // changes, so "some but not all rows discounted" reads as a dash, not a
+  // misleading checked/unchecked box.
+  useEffect(() => {
+    if (selectAllRef.current) selectAllRef.current.indeterminate = someDiscounted;
+  }, [someDiscounted]);
+
+  const handleSelectAllDiscount = (checked) => {
+    onRowsChange(rows.map((r) => ({ ...r, discountPct: checked ? customerDiscountPct : 0 })));
+  };
 
   const addRow = () => {
     onRowsChange([
@@ -78,9 +95,26 @@ const LineItemsEditor = ({ columns, rows, onColumnsChange, onRowsChange, discoun
               <th className="text-right px-2 py-1.5 w-20">Qty</th>
               <th className="text-right px-2 py-1.5 w-24">Unit Price</th>
               {showDiscount && (
-                <th className="text-right px-2 py-1.5 w-28">
-                  <div className="flex items-center justify-end gap-1">
-                    Discount
+                <th className="text-right px-2 py-1.5 w-32">
+                  <div className="flex items-center justify-end gap-1.5">
+                    <label
+                      className={`flex items-center gap-1 ${customerDiscountPct > 0 && rows.length > 0 ? "cursor-pointer" : "cursor-not-allowed opacity-50"}`}
+                      title={
+                        customerDiscountPct > 0 && rows.length > 0
+                          ? "Apply/clear the discount on every line"
+                          : "Select a customer with a Discount % set first"
+                      }
+                    >
+                      <input
+                        ref={selectAllRef}
+                        type="checkbox"
+                        disabled={customerDiscountPct <= 0 || rows.length === 0}
+                        checked={allDiscounted}
+                        onChange={(e) => handleSelectAllDiscount(e.target.checked)}
+                        className="rounded border-gray-300 text-brand-600 focus:ring-brand-500 disabled:cursor-not-allowed"
+                      />
+                      Discount
+                    </label>
                     <button
                       type="button"
                       onClick={() => setDiscountColumnVisible(false)}
