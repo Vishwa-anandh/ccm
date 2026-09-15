@@ -1,10 +1,17 @@
 import React, { useEffect, useState } from "react";
-import { Plus, Pencil, Trash2, X, Building2, Mail, MapPin } from "lucide-react";
+import { Plus, Pencil, Trash2, X, Building2, Mail, MapPin, Truck } from "lucide-react";
 import { getCustomers, createCustomer, updateCustomer, deleteCustomer } from "../../api/billingApi";
 import { fireToast } from "../../components/ToastProvider";
 import { useConfirm } from "../../components/ConfirmDialog";
 
-const EMPTY_FORM = { name: "", billingAddress: "", primaryContactEmail: "", discountPct: 0 };
+const EMPTY_FORM = {
+  name: "",
+  billingAddress: "",
+  shippingAddress: "",
+  shippingSameAsBilling: true,
+  primaryContactEmail: "",
+  discountPct: 0,
+};
 
 /**
  * Customers — Finance's list of billable customer accounts (doc §7.1).
@@ -39,9 +46,15 @@ const CustomersTab = () => {
 
   const startEdit = (c) => {
     setEditingId(c.id);
+    // "Same as billing" defaults to checked whenever there's no distinct
+    // shipping address on file — matches how a customer with no shipping
+    // address entered yet should read (not as a blank, unset field).
+    const sameAsBilling = !c.shippingAddress || c.shippingAddress === c.billingAddress;
     setForm({
       name: c.name,
       billingAddress: c.billingAddress,
+      shippingAddress: sameAsBilling ? "" : c.shippingAddress,
+      shippingSameAsBilling: sameAsBilling,
       primaryContactEmail: c.primaryContactEmail ?? "",
       discountPct: c.discountPct ?? 0,
     });
@@ -55,13 +68,21 @@ const CustomersTab = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
+    // Resolve to the actual address before saving — "same as billing" is a
+    // form-only convenience, not a field the stored customer record needs;
+    // it always carries a real shippingAddress instead of an empty one.
+    const { shippingSameAsBilling, ...rest } = form;
+    const payload = {
+      ...rest,
+      shippingAddress: shippingSameAsBilling ? form.billingAddress : form.shippingAddress,
+    };
     try {
       if (editingId) {
-        await updateCustomer(editingId, form);
+        await updateCustomer(editingId, payload);
         fireToast(`${form.name} updated`, "success");
         cancelEdit();
       } else {
-        await createCustomer(form);
+        await createCustomer(payload);
         fireToast(`${form.name} added`, "success");
         setForm(EMPTY_FORM);
       }
@@ -132,6 +153,27 @@ const CustomersTab = () => {
             />
           </div>
           <div>
+            <label className="flex items-center gap-2 text-xs font-semibold text-gray-500 mb-1 cursor-pointer w-fit">
+              <input
+                type="checkbox"
+                checked={form.shippingSameAsBilling}
+                onChange={(e) => setForm({ ...form, shippingSameAsBilling: e.target.checked })}
+                className="rounded border-gray-300 text-brand-600 focus:ring-brand-500"
+              />
+              Shipping address is same as billing address
+            </label>
+            {!form.shippingSameAsBilling && (
+              <textarea
+                required
+                rows={3}
+                value={form.shippingAddress}
+                onChange={(e) => setForm({ ...form, shippingAddress: e.target.value })}
+                className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm mt-2"
+                placeholder={"12 Meadowbrook Rd\nActon, MA 01720"}
+              />
+            )}
+          </div>
+          <div>
             <label className="block text-xs font-semibold text-gray-500 mb-1">Primary Billing Contact</label>
             <input
               type="email"
@@ -195,6 +237,11 @@ const CustomersTab = () => {
                   <p className="text-xs text-gray-400 mt-0.5 flex items-start gap-1 whitespace-pre-line">
                     <MapPin className="w-3 h-3 shrink-0 mt-0.5" /> {c.billingAddress}
                   </p>
+                  {c.shippingAddress && c.shippingAddress !== c.billingAddress && (
+                    <p className="text-xs text-gray-400 mt-1 flex items-start gap-1 whitespace-pre-line">
+                      <Truck className="w-3 h-3 shrink-0 mt-0.5" /> {c.shippingAddress}
+                    </p>
+                  )}
                   {c.primaryContactEmail && (
                     <p className="text-xs text-gray-400 mt-1 flex items-center gap-1">
                       <Mail className="w-3 h-3" /> {c.primaryContactEmail}
