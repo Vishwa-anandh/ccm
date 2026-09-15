@@ -382,31 +382,41 @@ const UploadInvoiceForm = ({ onClose, onCreated, initialParsed = null }) => {
       {uploaded && (
         <div className={`grid grid-cols-1 gap-6 ${showPreview ? "lg:grid-cols-2" : ""}`}>
           <div className="space-y-5 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-5 shadow-card">
-            <div>
-              <label className="block text-xs font-semibold text-gray-500 mb-1">Customer</label>
-              {loadingCustomers ? (
-                <div className="skeleton rounded-xl h-10 w-full" />
-              ) : (
-                <Dropdown
-                  variant="input"
-                  value={customerId}
-                  onChange={setCustomerId}
-                  options={customers.map((c) => ({
-                    value: c.id,
-                    label: c.discountPct > 0 ? `${c.name} — ${c.discountPct}% discount` : c.name,
-                  }))}
-                />
-              )}
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
+            {/* Customer/Template/Logo: stacked (Customer full-width, then
+                Template+Logo side by side) in the narrower two-column
+                layout, but with the preview hidden this panel gets the
+                full page width — spread all three into one horizontal
+                row instead of leaving that space unused. The Template/
+                Logo wrapper switches to `contents` in the wide layout so
+                its two children become direct items of the outer 3-col
+                grid, rather than nesting a second grid inside one cell. */}
+            <div className={showPreview ? "space-y-5" : "grid grid-cols-3 gap-3"}>
               <div>
-                <p className="text-xs font-semibold text-gray-500 mb-1">Template</p>
-                <TemplatePicker value={template} onChange={setTemplate} compact />
+                <label className="block text-xs font-semibold text-gray-500 mb-1">Customer</label>
+                {loadingCustomers ? (
+                  <div className="skeleton rounded-xl h-10 w-full" />
+                ) : (
+                  <Dropdown
+                    variant="input"
+                    value={customerId}
+                    onChange={setCustomerId}
+                    options={customers.map((c) => ({
+                      value: c.id,
+                      label: c.discountPct > 0 ? `${c.name} — ${c.discountPct}% discount` : c.name,
+                    }))}
+                  />
+                )}
               </div>
-              <div>
-                <p className="text-xs font-semibold text-gray-500 mb-1">Logo</p>
-                <LogoPicker value={logo} onChange={setLogo} />
+
+              <div className={showPreview ? "grid grid-cols-2 gap-3" : "contents"}>
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 mb-1">Template</p>
+                  <TemplatePicker value={template} onChange={setTemplate} compact />
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 mb-1">Logo</p>
+                  <LogoPicker value={logo} onChange={setLogo} />
+                </div>
               </div>
             </div>
 
