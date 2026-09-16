@@ -41,47 +41,56 @@ const BillingPage = () => {
   if (isPrivileged) {
     const Active = { invoices: InvoicesTab, "payment-terms": PaymentTermsTab }[activeTab];
     return (
-      <div className="p-4 sm:p-6 xl:p-8 w-full space-y-6">
-        <div className="flex items-start justify-between gap-4 flex-wrap">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight flex items-center gap-2">
-              <div className="p-2 bg-brand-50 dark:bg-brand-900/20 rounded-xl">
-                <ReceiptIcon className="w-5 h-5 text-brand-600" />
-              </div>
-              Billing
-            </h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 ml-11">
-              Generate branded customer invoices from already-ingested vendor invoices.
-            </p>
+      <>
+        <div className="p-4 sm:p-6 xl:p-8 w-full space-y-6">
+          <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight flex items-center gap-2">
+                <div className="p-2 bg-brand-50 dark:bg-brand-900/20 rounded-xl">
+                  <ReceiptIcon className="w-5 h-5 text-brand-600" />
+                </div>
+                Billing
+              </h1>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 ml-11">
+                Generate branded customer invoices from already-ingested vendor invoices.
+              </p>
+            </div>
+            {activeTab === "invoices" && (
+              <button onClick={() => setShowUploadModal(true)} className="btn-primary">
+                <Upload className="w-4 h-4" /> Upload Invoice
+              </button>
+            )}
           </div>
-          {activeTab === "invoices" && (
-            <button onClick={() => setShowUploadModal(true)} className="btn-primary">
-              <Upload className="w-4 h-4" /> Upload Invoice
-            </button>
-          )}
+
+          <div className="flex gap-1 bg-gray-100 dark:bg-gray-800 rounded-xl p-1 w-fit">
+            {TABS.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => setActiveTab(t.id)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                  activeTab === t.id
+                    ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm"
+                    : "text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                }`}
+              >
+                <t.icon className="w-4 h-4" />
+                {t.label}
+              </button>
+            ))}
+          </div>
+
+          <Active />
         </div>
 
-        <div className="flex gap-1 bg-gray-100 dark:bg-gray-800 rounded-xl p-1 w-fit">
-          {TABS.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setActiveTab(t.id)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                activeTab === t.id
-                  ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm"
-                  : "text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
-              }`}
-            >
-              <t.icon className="w-4 h-4" />
-              {t.label}
-            </button>
-          ))}
-        </div>
-
-        <Active />
-
+        {/* Rendered outside the space-y-6 wrapper above on purpose: Tailwind's
+            space-y-* applies margin-top to every non-first child via a
+            sibling selector — regardless of that child's own position
+            scheme, so a `fixed inset-0` modal placed inside it still gets
+            pushed down by that margin, opening a gap at the very top of
+            the viewport where the backdrop doesn't reach. Keeping it as a
+            sibling of the wrapper (not inside it) avoids that entirely. */}
         <UploadInvoiceModal open={showUploadModal} onClose={() => setShowUploadModal(false)} />
-      </div>
+      </>
     );
   }
 

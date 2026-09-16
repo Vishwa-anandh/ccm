@@ -294,6 +294,7 @@ const UploadInvoiceForm = ({ onClose, onCreated, initialParsed = null }) => {
   };
 
   return (
+    <>
     <div className="p-4 sm:p-6 xl:p-8 w-full space-y-6">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
@@ -621,17 +622,25 @@ const UploadInvoiceForm = ({ onClose, onCreated, initialParsed = null }) => {
           )}
         </div>
       )}
-
-      <SendInvoiceConfirmModal
-        open={showSendConfirm}
-        customer={customer}
-        previewProps={previewProps}
-        busy={busy}
-        onConfirm={handleConfirmSend}
-        onCancel={() => setShowSendConfirm(false)}
-      />
-      <SentEmailModal email={sentEmail} onClose={handleCloseSentEmail} />
     </div>
+
+    {/* Rendered outside the space-y-6 wrapper above on purpose: Tailwind's
+        space-y-* applies margin-top to every non-first child via a sibling
+        selector — regardless of that child's own position scheme, so a
+        `fixed inset-0` modal placed inside it still gets pushed down by
+        that margin, opening a gap at the very top of the viewport where
+        the backdrop doesn't reach. Keeping these as siblings of the
+        wrapper (not inside it) avoids that entirely. */}
+    <SendInvoiceConfirmModal
+      open={showSendConfirm}
+      customer={customer}
+      previewProps={previewProps}
+      busy={busy}
+      onConfirm={handleConfirmSend}
+      onCancel={() => setShowSendConfirm(false)}
+    />
+    <SentEmailModal email={sentEmail} onClose={handleCloseSentEmail} />
+    </>
   );
 };
 
