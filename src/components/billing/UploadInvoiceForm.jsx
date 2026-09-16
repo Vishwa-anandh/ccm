@@ -426,56 +426,63 @@ const UploadInvoiceForm = ({ onClose, onCreated, initialParsed = null }) => {
                 : "This customer has no Discount % set — add one in Customers to enable per-line discounts."}
             </p>
 
-            <div className="grid grid-cols-3 gap-3">
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1">Invoice Date</label>
-                <input
-                  type="date"
-                  value={invoiceDate}
-                  onChange={(e) => setInvoiceDate(e.target.value)}
-                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm"
-                />
+            {/* Same responsive-to-hidden-preview trick as Customer/
+                Template/Logo above: stacked two rows (Invoice Date/Serial/
+                PO, then Billing Period Start/End) in the narrower layout,
+                merged into one 5-column row once the preview is hidden
+                and this panel has the full page width to spread across. */}
+            <div className={showPreview ? "space-y-5" : "grid grid-cols-5 gap-3"}>
+              <div className={showPreview ? "grid grid-cols-3 gap-3" : "contents"}>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 mb-1">Invoice Date</label>
+                  <input
+                    type="date"
+                    value={invoiceDate}
+                    onChange={(e) => setInvoiceDate(e.target.value)}
+                    className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 mb-1">Serial Number</label>
+                  <input
+                    type="text"
+                    value={serialNumber}
+                    onChange={(e) => setSerialNumber(e.target.value)}
+                    placeholder="Optional"
+                    className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 mb-1">PO Number</label>
+                  <input
+                    type="text"
+                    value={poNumber}
+                    onChange={(e) => setPoNumber(e.target.value)}
+                    placeholder="Optional"
+                    className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm"
+                  />
+                </div>
               </div>
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1">Serial Number</label>
-                <input
-                  type="text"
-                  value={serialNumber}
-                  onChange={(e) => setSerialNumber(e.target.value)}
-                  placeholder="Optional"
-                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1">PO Number</label>
-                <input
-                  type="text"
-                  value={poNumber}
-                  onChange={(e) => setPoNumber(e.target.value)}
-                  placeholder="Optional"
-                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm"
-                />
-              </div>
-            </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1">Billing Period Start</label>
-                <input
-                  type="date"
-                  value={billingPeriodStart}
-                  onChange={(e) => setBillingPeriodStart(e.target.value)}
-                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1">Billing Period End</label>
-                <input
-                  type="date"
-                  value={billingPeriodEnd}
-                  onChange={(e) => setBillingPeriodEnd(e.target.value)}
-                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm"
-                />
+              <div className={showPreview ? "grid grid-cols-2 gap-3" : "contents"}>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 mb-1">Billing Period Start</label>
+                  <input
+                    type="date"
+                    value={billingPeriodStart}
+                    onChange={(e) => setBillingPeriodStart(e.target.value)}
+                    className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 mb-1">Billing Period End</label>
+                  <input
+                    type="date"
+                    value={billingPeriodEnd}
+                    onChange={(e) => setBillingPeriodEnd(e.target.value)}
+                    className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm"
+                  />
+                </div>
               </div>
             </div>
 
