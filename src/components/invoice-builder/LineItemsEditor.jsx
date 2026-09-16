@@ -6,7 +6,9 @@ import { formatCurrency } from "../../utils/formatters";
 
 const DEFAULT_WIDTHS = { description: 260, qty: 80, unitPrice: 96, discount: 132, amount: 96 };
 const DEFAULT_CUSTOM_WIDTH = 128;
-const ALIGN_RIGHT_KEYS = new Set(["qty", "unitPrice", "discount", "amount"]);
+const ALIGN_RIGHT_KEYS = new Set(["qty", "unitPrice", "discount"]);
+const ALIGN_CENTER_KEYS = new Set(["amount"]);
+const getAlignClass = (key) => (ALIGN_RIGHT_KEYS.has(key) ? "text-right" : ALIGN_CENTER_KEYS.has(key) ? "text-center" : "text-left");
 
 /**
  * LineItemsEditor — the dynamic rows + columns editor. Description/
@@ -324,7 +326,12 @@ const LineItemsEditor = ({ columns, rows, onColumnsChange, onRowsChange, discoun
           <thead>
             <tr className="text-[10px] font-bold text-gray-400 tracking-wide">
               {columnOrder.map((key) => {
-                const alignRight = ALIGN_RIGHT_KEYS.has(key);
+                const alignClass = getAlignClass(key);
+                // The grip sits on whichever outer edge the column's text
+                // hugs (right for right-aligned columns, left otherwise —
+                // including centered ones, so it doesn't collide with
+                // centered content).
+                const gripOnRight = ALIGN_RIGHT_KEYS.has(key);
                 const grip = (
                   <GripVertical
                     draggable
@@ -339,12 +346,12 @@ const LineItemsEditor = ({ columns, rows, onColumnsChange, onRowsChange, discoun
                     style={{ width: getColWidth(key) }}
                     onDragOver={handleDragOverHeader}
                     onDrop={handleDropOnHeader(key)}
-                    className={`relative group ${cellPadClass} ${alignRight ? "text-right" : "text-left"}`}
+                    className={`relative group ${cellPadClass} ${alignClass}`}
                   >
-                    <div className={`flex items-center gap-1 ${alignRight ? "justify-end" : ""}`}>
-                      {!alignRight && grip}
+                    <div className={`flex items-center gap-1 ${gripOnRight ? "justify-end" : alignClass === "text-center" ? "justify-center" : ""}`}>
+                      {!gripOnRight && grip}
                       <div className="min-w-0 flex-1">{renderHeaderLabel(key)}</div>
-                      {alignRight && grip}
+                      {gripOnRight && grip}
                     </div>
                     {/* Resize handle — its own mousedown target, separate
                         from the grip's HTML5 drag so resizing and
@@ -374,7 +381,7 @@ const LineItemsEditor = ({ columns, rows, onColumnsChange, onRowsChange, discoun
                   }`}
                 >
                   {columnOrder.map((key) => (
-                    <td key={key} className={cellPadClass}>
+                    <td key={key} className={`${cellPadClass} ${getAlignClass(key)}`}>
                       {renderBodyCell(key, r, amount)}
                     </td>
                   ))}
