@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import ReactDOM from "react-dom";
 import {
   Plus,
   Trash2,
@@ -532,8 +533,14 @@ const AccountManager = ({ onSelectAccount, onBack }) => {
       {/* Add account form / empty state */}
       {renderFormSection()}
 
-      {/* Details Modal */}
-      {selectedDetailsAccount && (
+      {/* Details Modal — rendered via a portal to document.body, matching
+          the AWS AccountManager's equivalent modal: this page's own root is
+          a `space-y-*` container, and Tailwind's space-y-* applies
+          margin-top to every non-first child via a sibling selector — a
+          margin that still applies to this modal's `fixed inset-0` overlay
+          regardless of its own position scheme, pushing it down and
+          opening a gap at the top of the viewport. */}
+      {selectedDetailsAccount && ReactDOM.createPortal(
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
           onClick={() => setSelectedDetailsAccount(null)}
@@ -584,7 +591,8 @@ const AccountManager = ({ onSelectAccount, onBack }) => {
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );

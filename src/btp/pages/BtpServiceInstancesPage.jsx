@@ -102,6 +102,7 @@ const BtpServiceInstancesPage = () => {
   };
 
   return (
+    <>
     <div className="p-4 sm:p-6 xl:p-8 space-y-6 max-w-full">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -311,16 +312,22 @@ const BtpServiceInstancesPage = () => {
         </div>
       )}
 
-      {/* SM config modal */}
-      {showConfigModal && (
-        <BtpServiceManagerModal
-          btpAccountId={accountId}
-          subaccount={subaccount}
-          onClose={() => setShowConfigModal(false)}
-          onSaved={loadData}
-        />
-      )}
     </div>
+
+    {/* SM config modal — rendered outside the space-y-6 wrapper above on
+        purpose: Tailwind's space-y-* applies margin-top to every non-first
+        child via a sibling selector, and that margin still applies to a
+        `fixed inset-0` modal regardless of its own position scheme,
+        pushing it down and opening a gap at the top of the viewport. */}
+    {showConfigModal && (
+      <BtpServiceManagerModal
+        btpAccountId={accountId}
+        subaccount={subaccount}
+        onClose={() => setShowConfigModal(false)}
+        onSaved={loadData}
+      />
+    )}
+    </>
   );
 };
 

@@ -6,6 +6,7 @@ import React, {
   useMemo,
   useRef,
 } from "react";
+import ReactDOM from "react-dom";
 import { useParams, useNavigate } from "react-router-dom";
 import PropTypes from "prop-types";
 import {
@@ -2969,14 +2970,24 @@ const BtpCostPage = () => {
                 onRefresh={handleSmRefresh}
               />
 
-              {/* SM config modal */}
-              {showSmModal && drillSub && (
+              {/* SM config modal — rendered via a portal to document.body:
+                  this sits deep inside several nested `space-y-*`
+                  containers (the Hierarchy tab's own layout), and
+                  Tailwind's space-y-* applies margin-top to every
+                  non-first child via a sibling selector — a margin that
+                  still applies to this modal's `fixed inset-0` overlay
+                  regardless of its own position scheme, pushing it down
+                  and opening a gap at the top of the viewport. A portal
+                  escapes that DOM nesting entirely while keeping the same
+                  React state/context. */}
+              {showSmModal && drillSub && ReactDOM.createPortal(
                 <BtpServiceManagerModal
                   btpAccountId={accountId}
                   subaccount={{ id: drillSub.guid, displayName: drillSub.displayName ?? drillSub.name, subdomain: drillSub.subdomain ?? null }}
                   onClose={() => setShowSmModal(false)}
                   onSaved={handleSmSaved}
-                />
+                />,
+                document.body,
               )}
 
               {/* Other subaccounts in same directory */}

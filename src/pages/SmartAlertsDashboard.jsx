@@ -848,6 +848,7 @@ export default function SmartAlertsDashboard() {
   ];
 
   return (
+    <>
     <div className="p-4 sm:p-6 xl:p-8 space-y-4">
       {/* ── Header ── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -1146,12 +1147,20 @@ export default function SmartAlertsDashboard() {
         </>
       )}
 
-      <AlertDetailModal
-        alert={selectedAlert}
-        onClose={() => setSelectedAlert(null)}
-        onResolve={resolveAlert}
-        onIgnore={ignoreAlert}
-      />
     </div>
+
+    {/* Rendered outside the space-y-4 wrapper above on purpose: Tailwind's
+        space-y-* applies margin-top to every non-first child via a
+        sibling selector — a margin that still applies to this modal's
+        `fixed inset-0` overlay (AlertDetailModal returns null until an
+        alert is selected) regardless of its own position scheme, pushing
+        it down and opening a gap at the top of the viewport. */}
+    <AlertDetailModal
+      alert={selectedAlert}
+      onClose={() => setSelectedAlert(null)}
+      onResolve={resolveAlert}
+      onIgnore={ignoreAlert}
+    />
+    </>
   );
 }
