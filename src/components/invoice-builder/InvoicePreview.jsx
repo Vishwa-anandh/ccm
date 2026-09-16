@@ -62,6 +62,15 @@ const InvoicePreview = forwardRef(
     const sender = SENDER_PROFILES[logo] ?? SENDER_PROFILES.maitsys;
     const hasDiscountColumn = rows.some((r) => Number(r.discountPct || 0) !== 0);
 
+    // The more columns on the invoice (custom fields Finance added, plus
+    // Discount when present), the tighter the fit — step the line-item
+    // table's text down instead of letting a wide table overflow the
+    // printed page or crush the custom columns unreadably small.
+    const totalColumnCount = 4 + (hasDiscountColumn ? 1 : 0) + columns.length;
+    const lineItemsTextClass =
+      totalColumnCount >= 9 ? "text-[11px]" : totalColumnCount >= 7 ? "text-xs" : "text-sm";
+    const lineItemsCellClass = totalColumnCount >= 7 ? "px-1.5 py-2" : "px-2 py-2";
+
     return (
       <div ref={ref} className="bg-white text-gray-900 w-full" style={{ minHeight: 600 }}>
         <div className={`flex items-start justify-between p-10 pb-6 ${modern ? "bg-brand-600 text-white" : ""}`}>
@@ -170,16 +179,16 @@ const InvoicePreview = forwardRef(
         )}
 
         <div className="px-10 py-8">
-          <table className="w-full text-sm mb-6">
+          <table className={`w-full ${lineItemsTextClass} mb-6`}>
             <thead>
               <tr className="border-b-2 border-gray-800 text-[10px] font-bold text-gray-500 tracking-wide">
-                <th className="text-left py-2">Description</th>
-                <th className="text-right py-2">Qty</th>
-                <th className="text-right py-2">Unit Price</th>
-                {hasDiscountColumn && <th className="text-right py-2">Discount %</th>}
-                <th className="text-right py-2">Amount</th>
+                <th className={`text-left ${lineItemsCellClass}`}>Description</th>
+                <th className={`text-right ${lineItemsCellClass}`}>Qty</th>
+                <th className={`text-right ${lineItemsCellClass}`}>Unit Price</th>
+                {hasDiscountColumn && <th className={`text-right ${lineItemsCellClass}`}>Discount %</th>}
+                <th className={`text-right ${lineItemsCellClass}`}>Amount</th>
                 {columns.map((c) => (
-                  <th key={c.id} className="text-left py-2">
+                  <th key={c.id} className={`text-left ${lineItemsCellClass}`}>
                     {c.label}
                   </th>
                 ))}
@@ -188,15 +197,15 @@ const InvoicePreview = forwardRef(
             <tbody>
               {rows.map((r, i) => (
                 <tr key={r.id} className="border-b border-gray-100">
-                  <td className="py-2">{r.description}</td>
-                  <td className="py-2 text-right">{r.quantity}</td>
-                  <td className="py-2 text-right">{formatCurrency(r.unitPrice)}</td>
+                  <td className={lineItemsCellClass}>{r.description}</td>
+                  <td className={`${lineItemsCellClass} text-right`}>{r.quantity}</td>
+                  <td className={`${lineItemsCellClass} text-right`}>{formatCurrency(r.unitPrice)}</td>
                   {hasDiscountColumn && (
-                    <td className="py-2 text-right">{r.discountPct ? `${r.discountPct}%` : "—"}</td>
+                    <td className={`${lineItemsCellClass} text-right`}>{r.discountPct ? `${r.discountPct}%` : "—"}</td>
                   )}
-                  <td className="py-2 text-right font-semibold">{formatCurrency(lineAmounts[i])}</td>
+                  <td className={`${lineItemsCellClass} text-right font-semibold`}>{formatCurrency(lineAmounts[i])}</td>
                   {columns.map((c) => (
-                    <td key={c.id} className="py-2">
+                    <td key={c.id} className={lineItemsCellClass}>
                       {r.extra[c.id] ?? ""}
                     </td>
                   ))}

@@ -128,6 +128,34 @@ const UploadInvoiceForm = ({ onClose, onCreated, initialParsed = null }) => {
   const taxAmount = round2(subtotalAfterAdjustment * (Number(taxPct || 0) / 100));
   const totalDue = round2(subtotalAfterAdjustment + taxAmount);
 
+  // Shared between the live preview pane and SendInvoiceConfirmModal —
+  // Send Invoice shows Finance the exact same document (not a plain
+  // line-item table) as one last check before it's actually emailed.
+  const previewProps = {
+    invoiceNumber: "PREVIEW",
+    invoiceDate,
+    serialNumber,
+    poNumber,
+    billingPeriodStart,
+    billingPeriodEnd,
+    dueDate: computedDueDate,
+    paymentTermName: paymentTermLabel,
+    billTo: {
+      name: customer?.name ?? "",
+      address: customer?.billingAddress ?? "",
+      email: customer?.primaryContactEmail ?? "",
+    },
+    shipTo: { address: customer?.shippingAddress ?? "" },
+    customFields,
+    columns,
+    rows,
+    taxPct,
+    overallAdjustmentPct,
+    notes: "",
+    template,
+    logo,
+  };
+
   // Each line's Discount checkbox applies customer.discountPct — the
   // discount is applied by default (every row starts checked) whenever the
   // selected customer has one set; Finance unchecks specific rows to
@@ -486,55 +514,23 @@ const UploadInvoiceForm = ({ onClose, onCreated, initialParsed = null }) => {
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-3">
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1">Payment Term</label>
-                {paymentTerms.length === 0 ? (
-                  <p className="text-xs text-gray-400 bg-gray-50 dark:bg-gray-800 rounded-lg px-3 py-2.5">
-                    None yet
-                  </p>
-                ) : (
-                  <Dropdown
-                    variant="input"
-                    value={paymentTermId}
-                    onChange={setPaymentTermId}
-                    options={paymentTerms.map((t) => ({
-                      value: t.id,
-                      label: `${t.days} day${t.days === 1 ? "" : "s"}`,
-                    }))}
-                  />
-                )}
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1">Tax %</label>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.1"
-                  // A literal "0" sitting in the box reads like it's
-                  // already filled in and has to be selected-and-deleted
-                  // before typing a real value — show it blank (a "0"
-                  // placeholder) instead, same as PO Number's "Optional".
-                  // 0 is still the real stored value until Finance types
-                  // something else.
-                  value={taxPct === 0 ? "" : taxPct}
-                  onChange={(e) => setTaxPct(e.target.value === "" ? 0 : Number(e.target.value))}
-                  placeholder="0"
-                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm"
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 mb-1">Payment Term</label>
+              {paymentTerms.length === 0 ? (
+                <p className="text-xs text-gray-400 bg-gray-50 dark:bg-gray-800 rounded-lg px-3 py-2.5">
+                  None yet
+                </p>
+              ) : (
+                <Dropdown
+                  variant="input"
+                  value={paymentTermId}
+                  onChange={setPaymentTermId}
+                  options={paymentTerms.map((t) => ({
+                    value: t.id,
+                    label: `${t.days} day${t.days === 1 ? "" : "s"}`,
+                  }))}
                 />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1">Summary Adj. %</label>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.1"
-                  value={overallAdjustmentPct === 0 ? "" : overallAdjustmentPct}
-                  onChange={(e) => setOverallAdjustmentPct(e.target.value === "" ? 0 : Number(e.target.value))}
-                  placeholder="0"
-                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm"
-                />
-              </div>
+              )}
             </div>
             {paymentTerms.length === 0 && (
               <p className="text-[10px] text-gray-400 -mt-2">No payment terms yet — add one in the Payment Terms tab.</p>
@@ -567,19 +563,45 @@ const UploadInvoiceForm = ({ onClose, onCreated, initialParsed = null }) => {
               <div className="px-4 py-2.5 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
                 <p className="text-xs font-bold text-gray-700 dark:text-gray-300">Summary</p>
               </div>
-              <div className="px-4 py-3 space-y-1.5 text-xs">
-                <div className="flex justify-between">
+              <div className="px-4 py-3 space-y-2 text-xs">
+                <div className="flex justify-between items-center">
                   <span className="text-gray-500">Line Items Subtotal</span>
                   <span className="font-semibold text-gray-800 dark:text-gray-200">{formatCurrency(lineSubtotal)}</span>
                 </div>
-                {Number(overallAdjustmentPct || 0) !== 0 && (
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Summary Adjustment ({overallAdjustmentPct}%)</span>
-                    <span className="font-semibold text-gray-800 dark:text-gray-200">{formatCurrency(adjustmentAmount)}</span>
-                  </div>
-                )}
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Tax ({taxPct}%)</span>
+
+                {/* Tax %/Summary Adj. % are edited right here, next to the
+                    amount they produce, instead of in a separate field up
+                    top disconnected from the total they affect. */}
+                <div className="flex justify-between items-center gap-2">
+                  <span className="text-gray-500 flex items-center gap-1.5 shrink-0">
+                    Summary Adjustment
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.1"
+                      value={overallAdjustmentPct === 0 ? "" : overallAdjustmentPct}
+                      onChange={(e) => setOverallAdjustmentPct(e.target.value === "" ? 0 : Number(e.target.value))}
+                      placeholder="0"
+                      className="w-20 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1.5 text-center text-sm"
+                    />
+                    %
+                  </span>
+                  <span className="font-semibold text-gray-800 dark:text-gray-200">{formatCurrency(adjustmentAmount)}</span>
+                </div>
+                <div className="flex justify-between items-center gap-2">
+                  <span className="text-gray-500 flex items-center gap-1.5 shrink-0">
+                    Tax
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.1"
+                      value={taxPct === 0 ? "" : taxPct}
+                      onChange={(e) => setTaxPct(e.target.value === "" ? 0 : Number(e.target.value))}
+                      placeholder="0"
+                      className="w-20 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1.5 text-center text-sm"
+                    />
+                    %
+                  </span>
                   <span className="font-semibold text-gray-800 dark:text-gray-200">{formatCurrency(taxAmount)}</span>
                 </div>
               </div>
@@ -593,31 +615,7 @@ const UploadInvoiceForm = ({ onClose, onCreated, initialParsed = null }) => {
           {showPreview && (
             <div className="bg-gray-100 dark:bg-gray-950 rounded-2xl p-4 overflow-auto lg:sticky lg:top-4 lg:self-start lg:max-h-[calc(100vh-6rem)]">
               <div className="shadow-lg mx-auto" style={{ maxWidth: 640 }}>
-                <InvoicePreview
-                  ref={previewRef}
-                  invoiceNumber="PREVIEW"
-                  invoiceDate={invoiceDate}
-                  serialNumber={serialNumber}
-                  poNumber={poNumber}
-                  billingPeriodStart={billingPeriodStart}
-                  billingPeriodEnd={billingPeriodEnd}
-                  dueDate={computedDueDate}
-                  paymentTermName={paymentTermLabel}
-                  billTo={{
-                    name: customer?.name ?? "",
-                    address: customer?.billingAddress ?? "",
-                    email: customer?.primaryContactEmail ?? "",
-                  }}
-                  shipTo={{ address: customer?.shippingAddress ?? "" }}
-                  customFields={customFields}
-                  columns={columns}
-                  rows={rows}
-                  taxPct={taxPct}
-                  overallAdjustmentPct={overallAdjustmentPct}
-                  notes=""
-                  template={template}
-                  logo={logo}
-                />
+                <InvoicePreview ref={previewRef} {...previewProps} />
               </div>
             </div>
           )}
@@ -627,9 +625,7 @@ const UploadInvoiceForm = ({ onClose, onCreated, initialParsed = null }) => {
       <SendInvoiceConfirmModal
         open={showSendConfirm}
         customer={customer}
-        rows={rows}
-        taxPct={taxPct}
-        overallAdjustmentPct={overallAdjustmentPct}
+        previewProps={previewProps}
         busy={busy}
         onConfirm={handleConfirmSend}
         onCancel={() => setShowSendConfirm(false)}
