@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import PropTypes from "prop-types";
-import { Plus, Trash2, Columns, Percent, GripVertical } from "lucide-react";
+import { Plus, Trash2, Columns, Percent, ChevronLeft, ChevronRight } from "lucide-react";
 import { round2 } from "../../utils/pricingCalc";
 import { formatCurrency } from "../../utils/formatters";
 
@@ -32,10 +32,12 @@ const getAlignClass = (key) => (ALIGN_RIGHT_KEYS.has(key) ? "text-right" : ALIGN
  * always the customer record.
  *
  * Every column — system fields and custom ones alike — is resizable (drag
- * the thin handle on its right edge) and reorderable (drag its grip icon
- * to drop it anywhere in the row), all tracked locally: `columnOrder`
- * holds every column's key in display order, `colWidths` holds each key's
- * pixel width. Neither is persisted with the invoice — it's a layout
+ * the thin handle on its right edge) and reorderable (the ‹ › arrows in
+ * its header swap it one slot left/right — plain clicks, not a drag
+ * gesture, which real trackpads/mice found fiddly to land on a tiny
+ * hidden grip icon), all tracked locally: `columnOrder` holds every
+ * column's key in display order, `colWidths` holds each key's pixel
+ * width. Neither is persisted with the invoice — it's a layout
  * convenience for reviewing/editing, not saved data.
  */
 const LineItemsEditor = ({ columns, rows, onColumnsChange, onRowsChange, discountAvailable = false, customerDiscountPct = 0 }) => {
@@ -173,23 +175,16 @@ const LineItemsEditor = ({ columns, rows, onColumnsChange, onRowsChange, discoun
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const dragKeyRef = useRef(null);
-  const handleDragStart = (key) => (e) => {
-    dragKeyRef.current = key;
-    e.dataTransfer.effectAllowed = "move";
-  };
-  const handleDragOverHeader = (e) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
-  };
-  const handleDropOnHeader = (targetKey) => (e) => {
-    e.preventDefault();
-    const draggedKey = dragKeyRef.current;
-    dragKeyRef.current = null;
-    if (!draggedKey || draggedKey === targetKey) return;
+  // Swaps a column one slot left/right — a plain click beats a drag
+  // gesture here: dragging a tiny, hover-only grip icon (the first design)
+  // proved fiddly to actually land with a real mouse/trackpad.
+  const moveColumn = (key, direction) => {
     setColumnOrder((prev) => {
-      const next = prev.filter((k) => k !== draggedKey);
-      next.splice(next.indexOf(targetKey), 0, draggedKey);
+      const i = prev.indexOf(key);
+      const j = i + direction;
+      if (i === -1 || j < 0 || j >= prev.length) return prev;
+      const next = [...prev];
+      [next[i], next[j]] = [next[j], next[i]];
       return next;
     });
   };
@@ -321,41 +316,74 @@ const LineItemsEditor = ({ columns, rows, onColumnsChange, onRowsChange, discoun
 
   return (
     <div className="space-y-3">
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={addRow}
+          className="flex items-center gap-1.5 text-xs font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400"
+        >
+          <Plus className="w-3.5 h-3.5" /> Add Row
+        </button>
+        <button
+          type="button"
+          onClick={addColumn}
+          className="flex items-center gap-1.5 text-xs font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400"
+        >
+          <Columns className="w-3.5 h-3.5" /> Add Column
+        </button>
+        {discountAvailable && !discountColumnVisible && (
+          <button
+            type="button"
+            onClick={() => setDiscountColumnVisible(true)}
+            className="flex items-center gap-1.5 text-xs font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400"
+          >
+            <Percent className="w-3.5 h-3.5" /> Add Discount
+          </button>
+        )}
+      </div>
       <div className="overflow-x-auto">
         <table className={`w-full table-fixed ${tableTextClass} transition-[font-size] duration-150`}>
           <thead>
             <tr className="text-[10px] font-bold text-gray-400 tracking-wide">
-              {columnOrder.map((key) => {
+              {columnOrder.map((key, colIndex) => {
                 const alignClass = getAlignClass(key);
-                // The grip sits on whichever outer edge the column's text
-                // hugs (right for right-aligned columns, left otherwise —
-                // including centered ones, so it doesn't collide with
-                // centered content).
-                const gripOnRight = ALIGN_RIGHT_KEYS.has(key);
-                const grip = (
-                  <GripVertical
-                    draggable
-                    onDragStart={handleDragStart(key)}
-                    aria-label="Drag to reorder column"
-                    className="w-3 h-3 text-gray-300 cursor-grab active:cursor-grabbing shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                  />
+                const moveButtons = (
+                  <div className="flex items-center gap-0.5 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => moveColumn(key, -1)}
+                      disabled={colIndex === 0}
+                      aria-label="Move column left"
+                      title="Move column left"
+                      className="p-0.5 rounded text-gray-400 hover:text-brand-600 hover:bg-brand-50 dark:hover:bg-brand-950/30 disabled:opacity-20 disabled:pointer-events-none"
+                    >
+                      <ChevronLeft className="w-3 h-3" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => moveColumn(key, 1)}
+                      disabled={colIndex === columnOrder.length - 1}
+                      aria-label="Move column right"
+                      title="Move column right"
+                      className="p-0.5 rounded text-gray-400 hover:text-brand-600 hover:bg-brand-50 dark:hover:bg-brand-950/30 disabled:opacity-20 disabled:pointer-events-none"
+                    >
+                      <ChevronRight className="w-3 h-3" />
+                    </button>
+                  </div>
                 );
                 return (
                   <th
                     key={key}
                     style={{ width: getColWidth(key) }}
-                    onDragOver={handleDragOverHeader}
-                    onDrop={handleDropOnHeader(key)}
-                    className={`relative group ${cellPadClass} ${alignClass}`}
+                    className={`relative ${cellPadClass} ${alignClass}`}
                   >
-                    <div className={`flex items-center gap-1 ${gripOnRight ? "justify-end" : alignClass === "text-center" ? "justify-center" : ""}`}>
-                      {!gripOnRight && grip}
+                    <div className="flex items-center gap-1">
+                      {moveButtons}
                       <div className="min-w-0 flex-1">{renderHeaderLabel(key)}</div>
-                      {gripOnRight && grip}
                     </div>
-                    {/* Resize handle — its own mousedown target, separate
-                        from the grip's HTML5 drag so resizing and
-                        reordering never fight over the same gesture. */}
+                    {/* Resize handle — a separate mousedown target on the
+                        header's own right edge, unrelated to the move
+                        buttons above. */}
                     <div
                       onMouseDown={startResize(key)}
                       title="Drag to resize this column"
@@ -400,31 +428,6 @@ const LineItemsEditor = ({ columns, rows, onColumnsChange, onRowsChange, discoun
             })}
           </tbody>
         </table>
-      </div>
-      <div className="flex items-center gap-3">
-        <button
-          type="button"
-          onClick={addRow}
-          className="flex items-center gap-1.5 text-xs font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400"
-        >
-          <Plus className="w-3.5 h-3.5" /> Add Row
-        </button>
-        <button
-          type="button"
-          onClick={addColumn}
-          className="flex items-center gap-1.5 text-xs font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400"
-        >
-          <Columns className="w-3.5 h-3.5" /> Add Column
-        </button>
-        {discountAvailable && !discountColumnVisible && (
-          <button
-            type="button"
-            onClick={() => setDiscountColumnVisible(true)}
-            className="flex items-center gap-1.5 text-xs font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400"
-          >
-            <Percent className="w-3.5 h-3.5" /> Add Discount
-          </button>
-        )}
       </div>
     </div>
   );
