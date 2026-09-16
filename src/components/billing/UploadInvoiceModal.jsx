@@ -97,7 +97,14 @@ const UploadInvoiceModal = ({ open, onClose }) => {
     fireToast(message, failed.length > 0 ? "info" : "success");
 
     onClose();
-    navigate("/billing/generate", { state: { parsed } });
+    // `replace: true` — this hop from the popup into the builder isn't a
+    // page the user consciously navigated to; it shouldn't sit as its own
+    // entry in browser history. Without this, pressing the browser's own
+    // Back button later can land squarely on /billing/generate with its
+    // (already-consumed) parsed state gone, showing a bare "drop your
+    // invoice here" screen instead of returning to wherever the user
+    // actually came from.
+    navigate("/billing/generate", { state: { parsed }, replace: true });
   };
 
   const hasPending = pendingFiles.length > 0;

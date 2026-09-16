@@ -27,8 +27,14 @@ const GenerateInvoicePage = () => {
 
   return (
     <UploadInvoiceForm
-      onClose={() => navigate("/billing")}
-      onCreated={(invoiceId) => navigate("/billing", { state: { selectedInvoiceId: invoiceId } })}
+      // `replace: true` — leaving the builder swaps this history entry for
+      // /billing rather than pushing a new one on top of it. Without this,
+      // a lingering /billing/generate entry sits in history (now with its
+      // parsed state already cleared, above), and pressing the browser's
+      // own Back button from /billing lands back on that stale, empty
+      // upload screen instead of wherever the user actually came from.
+      onClose={() => navigate("/billing", { replace: true })}
+      onCreated={(invoiceId) => navigate("/billing", { replace: true, state: { selectedInvoiceId: invoiceId } })}
       initialParsed={location.state?.parsed ?? null}
     />
   );
